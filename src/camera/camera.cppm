@@ -57,16 +57,15 @@ public:
     film = Film{res_x, res_y, half_w, half_h};
   }
 
-  Ray generate_ray(f32 px, f32 py) const noexcept
+  Ray generate_ray(f32 px, f32 py, f32 sx = 0.5f, f32 sy = 0.5f) const
   {
-    constexpr auto spacing = 0.5f; // sub-pixel spacing
-
-    f32 u = (px + spacing) / static_cast<f32>(film.res_x);
-    f32 v = (py + spacing) / static_cast<f32>(film.res_y);
+    f32 u = (px + sx) / static_cast<f32>(film.res_x);
+    f32 v = (py + sy) / static_cast<f32>(film.res_y);
     f32 ndc_x =  2.f * u - 1.f;
     f32 ndc_y =  1.f - 2.f * v;
 
-    Point3f p_film = position + forward
+    Point3f p_film = position
+                     + forward
                      + (ndc_x * film.half_w) * right
                      + (ndc_y * film.half_h) * up;
 

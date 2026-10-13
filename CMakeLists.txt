@@ -16,11 +16,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_library(types_module)
 target_sources(types_module PUBLIC FILE_SET CXX_MODULES FILES src/types.cppm)
 
-# --- Lib for color modules ---
-add_library(color_module)
-target_sources(color_module PUBLIC FILE_SET CXX_MODULES FILES src/color.cppm)
-target_link_libraries(color_module PUBLIC types_module)
-
 # --- Lib for math modules ---
 add_library(math_module)
 target_sources(math_module PUBLIC FILE_SET CXX_MODULES FILES
@@ -33,6 +28,16 @@ target_sources(math_module PUBLIC FILE_SET CXX_MODULES FILES
 )
 # math modules need types
 target_link_libraries(math_module PUBLIC types_module)
+
+# --- Lib for hit module ---
+add_library(hit_module)
+target_sources(hit_module PUBLIC FILE_SET CXX_MODULES FILES src/hit.cppm)
+target_link_libraries(hit_module PUBLIC types_module math_module)
+
+# --- Lib for color modules ---
+add_library(color_module)
+target_sources(color_module PUBLIC FILE_SET CXX_MODULES FILES src/color.cppm)
+target_link_libraries(color_module PUBLIC types_module)
 
 # --- Lib for camera modules ---
 add_library(camera_module)
@@ -48,8 +53,9 @@ add_library(geometry_module)
 target_sources(geometry_module PUBLIC FILE_SET CXX_MODULES FILES
   src/geometry/geometry.cppm
   src/geometry/sphere.cppm
+  src/geometry/disk.cppm
 )
-target_link_libraries(geometry_module PUBLIC types_module math_module camera_module)
+target_link_libraries(geometry_module PUBLIC types_module math_module camera_module hit_module)
 
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE
