@@ -6,6 +6,8 @@ export {
   template<typename T>
   concept Arithmetic = std::is_arithmetic_v<T>;
 
+  using byte = std::byte;
+
   // --- Signed integers ---
   using i8  = std::int8_t;
   using i16 = std::int16_t;

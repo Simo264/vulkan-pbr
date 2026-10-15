@@ -5,10 +5,10 @@ import math;
 import camera;
 import color;
 import scene;
+import gltf_loader;
 
-constexpr Color3f sphere_reflectance{ 0.8f, 0.3f, 0.3f };
-constexpr Color3f disk_reflectance  { 0.7f, 0.7f, 0.7f };
-
+constexpr auto image_width = 640;
+constexpr auto image_height = 360;
 
 struct UniformRandomGenerator
 {
@@ -40,12 +40,6 @@ struct ShadingFrame
 
   // local to world
   Vector3f to_world(const Vector3f& x) const noexcept { return x.x * s + x.y * t + x.z * n; }
-};
-
-struct ShadingSample
-{
-  Color3f  weight;
-  Ray      reflected_ray;
 };
 
 Vector3f sample_uniform_hemisphere(const Vector2f& u)
@@ -92,7 +86,6 @@ f32 lambert_pdf(const Vector3f& wo, const Vector3f& wi)
   return wi.z / PI; // (cos theta) / (pi)
 }
 
-
 Color3f ray_color(const Ray&              r,
                   const Scene&            scene,
                   UniformRandomGenerator& rng,
@@ -128,56 +121,15 @@ Color3f ray_color(const Ray&              r,
   return weight * ray_color(reflected_ray, scene, rng, depth - 1);
 }
 
-i32 main()
+
+void save_image(Camera& cam, std::string_view filename)
 {
-  constexpr auto image_width = 640;
-  constexpr auto image_height = 360;
-  Camera cam{
-    Point3f {0.f, 0.f, -2.f},   // at the origin
-    Vector3f{0.f, 0.f, 1.f},    // forward
-    60.f,                       // FOV in degrees,
-    image_width, image_height
-  };
-
-  UniformRandomGenerator rng{ 12345u };
-
-  Scene scene;
-  scene.add(Sphere{ Point3f{0.f, 0.f, 3.f} });
-  scene.add(Sphere{ Point3f{3.f, 0.f, 3.f} });
-  scene.add(Sphere{ Point3f{-3.f, 0.f, 3.f} });
-  scene.add(Disk{ Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 50.f });
-
-  constexpr auto samples_per_pixel = 32;
-  for (auto j = 0; j < image_height; ++j)
-  {
-    for (auto i = 0; i < image_width; ++i)
-    {
-      Color3f c{0.f};
-      for (i32 sample = 0; sample < samples_per_pixel; sample++)
-      {
-        constexpr auto max_depth = 5;
-        f32 sx = rng.uniform();
-        f32 sy = rng.uniform();
-        Ray r = cam.generate_ray(i, j, sx, sy);
-        c += ray_color(r, scene, rng, max_depth);
-      }
-      c = c * (1.f / samples_per_pixel);
-      cam.film.at(i, j) = c;
-    }
-  }
-
-  constexpr auto output_file = "output.ppm";
-  std::ofstream out{output_file, std::ios::binary};
-  if (!out)
-  {
-    std::println(std::cerr, "Cannot open {}", output_file);
-    return 1;
-  }
+  std::ofstream out{filename.data(), std::ios::binary};
 
   out << "P6\n" << image_width << ' ' << image_height << "\n255\n";
-  auto to255 = [](f32 v) -> u8 {
+  auto to255 = [](f32 v) -> byte {
     v = std::clamp(v, 0.f, 1.f);
-    return static_cast<u8>(255.f * v);
+    return static_cast<byte>(255.f * v);
   };
 
   for (auto j = 0; j < image_height; ++j)
@@ -190,6 +142,67 @@ i32 main()
       out.put(static_cast<char>(to255(c.b)));
     }
   }
-  std::println("Wrote {} ({}x{})", output_file, image_width, image_height);
+  std::println("Saved image: {} ({}x{})", filename, image_width, image_height);
+}
+
+i32 main()
+{
+  Camera camera{
+    Point3f{0.f, 2.f, -1.f},   // position
+    Point3f{0.f, 0.f, 5.f},    // look at
+    50.f,                      // FOV in degrees,
+    image_width, image_height
+  };
+
+  UniformRandomGenerator rng{ 12345u };
+
+  Scene scene;
+  scene.add(Disk{ Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 50.f });
+  scene.add(Sphere{ Point3f{0.f, 0.f, 5.f} });
+
+  auto mesh = load_gltf_model("models/cube.glb");
+  mesh.scale({1.0f});
+  mesh.rotate_y(45.f);
+  mesh.translate({3.f, 0.f, 5.f});
+  scene.add(std::move(mesh));
+
+  // if(auto mesh = load_mesh("models/cylinder.glb"))
+  // {
+  //   mesh->scale({4.0, 1.0f, 4.0f});
+  //   mesh->rotate_y(0.f);
+  //   mesh->translate({-3.f, 0.f, 5.f});
+  //   mesh->reflectance = {0.8f, 0.8f, 0.8f};
+  //   scene.add(std::move(*mesh));
+  // }
+
+
+  constexpr auto samples_per_pixel = 8;
+  for (auto j = 0; j < image_height; ++j)
+  {
+    if (j % std::max(1, image_height / 20) == 0 || j == image_height - 1)
+    {
+      f32 pct = 100.f * static_cast<f32>(j + 1) / static_cast<f32>(image_height);
+      i32 done = (j + 1) * image_width;
+      constexpr auto total = image_width * image_height;
+      std::println("{} / {} ({:.1f}%)", done, total, pct);
+    }
+
+    for (auto i = 0; i < image_width; ++i)
+    {
+      Color3f c{0.f};
+      for (i32 sample = 0; sample < samples_per_pixel; sample++)
+      {
+        constexpr auto max_depth = 5;
+        f32 sx = rng.uniform();
+        f32 sy = rng.uniform();
+        Ray r = camera.generate_ray(i, j, sx, sy);
+        c += ray_color(r, scene, rng, max_depth);
+      }
+      c = c * (1.f / samples_per_pixel);
+      camera.film.at(i, j) = c;
+    }
+  }
+
+  save_image(camera, "output_tmp.ppm");
   return 0;
 }

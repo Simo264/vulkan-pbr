@@ -8,30 +8,49 @@ template<Arithmetic T>
 struct Vector2
 {
   T x{}, y{};
-  constexpr Vector2& operator+=(const Vector2& o) noexcept { x += o.x; y += o.y; return *this; }
-  constexpr Vector2& operator-=(const Vector2& o) noexcept { x -= o.x; y -= o.y; return *this; }
-  constexpr Vector2& operator*=(T s) noexcept              { x *= s;    y *= s;    return *this; }
-  constexpr Vector2& operator/=(T s) noexcept              { x /= s;    y /= s;    return *this; }
+
+  Vector2() = default;
+  Vector2(T c) : x{c}, y{c} {}
+  Vector2(T x, T y) : x{x}, y{y} {}
+  constexpr Vector2& operator+=(const Vector2& o) { x += o.x; y += o.y; return *this; }
+  constexpr Vector2& operator-=(const Vector2& o) { x -= o.x; y -= o.y; return *this; }
+  constexpr Vector2& operator*=(T s)              { x *= s;   y *= s;   return *this; }
+  constexpr Vector2& operator/=(T s)              { x /= s;   y /= s;   return *this; }
+
+  constexpr T  operator[](i32 i) const { switch (i) { case 0: return x; default: return y; } }
+  constexpr T& operator[](i32 i)       { switch (i) { case 0: return x; default: return y; } }
 };
 
 template<Arithmetic T>
 struct Vector3
 {
   T x{}, y{}, z{};
-  constexpr Vector3& operator+=(const Vector3& o) noexcept { x += o.x; y += o.y; z += o.z; return *this; }
-  constexpr Vector3& operator-=(const Vector3& o) noexcept { x -= o.x; y -= o.y; z -= o.z; return *this; }
-  constexpr Vector3& operator*=(T s) noexcept              { x *= s;    y *= s;    z *= s;    return *this; }
-  constexpr Vector3& operator/=(T s) noexcept              { x /= s;    y /= s;    z /= s;    return *this; }
+
+  Vector3() = default;
+  Vector3(T c) : x{c}, y{c}, z{c} {}
+  Vector3(T x, T y, T z) : x{x}, y{y}, z{z} {}
+  constexpr Vector3& operator+=(const Vector3& o) { x += o.x; y += o.y; z += o.z; return *this; }
+  constexpr Vector3& operator-=(const Vector3& o) { x -= o.x; y -= o.y; z -= o.z; return *this; }
+  constexpr Vector3& operator*=(T s)              { x *= s;   y *= s;   z *= s;   return *this; }
+  constexpr Vector3& operator/=(T s)              { x /= s;   y /= s;   z /= s;   return *this; }
+  constexpr T  operator[](i32 i) const { switch (i) { case 0: return x; case 1: return y; default: return z; } }
+  constexpr T& operator[](i32 i)       { switch (i) { case 0: return x; case 1: return y; default: return z; } }
 };
 
 template<Arithmetic T>
 struct Vector4
 {
   T x{}, y{}, z{}, w{};
-  constexpr Vector4& operator+=(const Vector4& o) noexcept { x += o.x; y += o.y; z += o.z; w += o.w; return *this; }
-  constexpr Vector4& operator-=(const Vector4& o) noexcept { x -= o.x; y -= o.y; z -= o.z; w -= o.w; return *this; }
-  constexpr Vector4& operator*=(T s) noexcept              { x *= s;    y *= s;    z *= s;    w *= s;    return *this; }
-  constexpr Vector4& operator/=(T s) noexcept              { x /= s;    y /= s;    z /= s;    w /= s;    return *this; }
+
+  Vector4() = default;
+  Vector4(T c) : x{c}, y{c}, z{c}, w{c} {}
+  Vector4(T x, T y, T z, T w) : x{x}, y{y}, z{z}, w{w} {}
+  constexpr Vector4& operator+=(const Vector4& o) { x += o.x; y += o.y; z += o.z; w += o.w; return *this; }
+  constexpr Vector4& operator-=(const Vector4& o) { x -= o.x; y -= o.y; z -= o.z; w -= o.w; return *this; }
+  constexpr Vector4& operator*=(T s)              { x *= s;   y *= s;   z *= s;   w *= s;   return *this; }
+  constexpr Vector4& operator/=(T s)              { x /= s;   y /= s;   z /= s;   w /= s;   return *this; }
+  constexpr T  operator[](i32 i) const { switch (i) { case 0: return x; case 1: return y; case 2: return z; default: return w; } }
+  constexpr T& operator[](i32 i)       { switch (i) { case 0: return x; case 1: return y; case 2: return z; default: return w; } }
 };
 
 template<Arithmetic T>
@@ -39,10 +58,10 @@ struct Normal3
 {
   T x{}, y{}, z{};
 
-  constexpr Normal3& operator+=(const Normal3& o) noexcept { x += o.x; y += o.y; z += o.z; return *this; }
-  constexpr Normal3& operator-=(const Normal3& o) noexcept { x -= o.x; y -= o.y; z -= o.z; return *this; }
-  constexpr Normal3& operator*=(T s) noexcept              { x *= s;    y *= s;    z *= s;    return *this; }
-  constexpr Normal3& operator/=(T s) noexcept              { x /= s;    y /= s;    z /= s;    return *this; }
+  constexpr Normal3& operator+=(const Normal3& o) { x += o.x; y += o.y; z += o.z; return *this; }
+  constexpr Normal3& operator-=(const Normal3& o) { x -= o.x; y -= o.y; z -= o.z; return *this; }
+  constexpr Normal3& operator*=(T s)              { x *= s;   y *= s;   z *= s;   return *this; }
+  constexpr Normal3& operator/=(T s)              { x /= s;   y /= s;   z /= s;   return *this; }
 };
 
 
@@ -185,7 +204,7 @@ export {
   template <Arithmetic T>
   constexpr Vector4<T> clamp(const Vector4<T>& v, T low, T high) noexcept { return Vector4<T>{ clamp(v.x, low, high), clamp(v.y, low, high), clamp(v.z, low, high), clamp(v.w, low, high) }; }
   template <Arithmetic T>
-  constexpr Vector3<T> permute(const Vector3<T>& v, std::size_t x, std::size_t y, std::size_t z) noexcept { const T c[3] = {v.x, v.y, v.z}; return Vector3<T>{c[x], c[y], c[z]}; }
+  constexpr Vector3<T> permute(const Vector3<T>& v, usize x, usize y, usize z) noexcept { const T c[3] = {v.x, v.y, v.z}; return Vector3<T>{c[x], c[y], c[z]}; }
 
   using Vector2f = Vector2<f32>;
   using Vector2d = Vector2<f64>;

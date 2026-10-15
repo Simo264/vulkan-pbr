@@ -3,12 +3,13 @@ export module scene;
 export import :hit_record;
 export import :sphere;
 export import :disk;
+export import :triangle_mesh;
 
 import types;
 import math;
 import color;
 
-export using SceneObject = std::variant<Sphere, Disk>;
+export using SceneObject = std::variant<Sphere, Disk, TriangleMesh>;
 
 export class Scene
 {

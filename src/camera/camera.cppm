@@ -19,12 +19,9 @@ export struct Film
     pixels(static_cast<usize>(res_x) * static_cast<usize>(res_y), Color3f{0.f, 0.f, 0.f})
   {}
 
-  void add_sample(i32 x, i32 y, const Color3f& c) noexcept
-  {
-    pixels.at(static_cast<usize>(y) * res_x + x) += c;
-  }
+  void add_sample(i32 x, i32 y, const Color3f& c) { pixels.at(static_cast<usize>(y) * res_x + x) += c; }
 
-  Color3f& at(i32 x, i32 y) noexcept { return pixels.at(static_cast<usize>(y) * res_x + x); }
+  Color3f& at(i32 x, i32 y) { return pixels.at(static_cast<usize>(y) * res_x + x); }
 
   // resolution
   i32 res_x{}, res_y{};
@@ -40,15 +37,15 @@ export class Camera
 {
 public:
   Camera(const Point3f&  pos,
-         const Vector3f& fwd,
+         const Point3f&  target,
          f32             fov_degrees,
          i32             res_x,
          i32             res_y,
          const Vector3f& world_up = {0.f, 1.f, 0.f})
-      : position{pos}, forward{normalize(fwd)}
+      : position{pos}, view_dir{normalize(target - pos)}
   {
-    right = normalize(cross(world_up, forward));
-    up    = cross(forward, right);
+    right = normalize(cross(world_up, view_dir));
+    up    = cross(view_dir, right);
 
     f32 aspect = static_cast<f32>(res_x) / static_cast<f32>(res_y);
     f32 half_h = std::tan(to_radians(fov_degrees) * 0.5f);
@@ -65,7 +62,7 @@ public:
     f32 ndc_y =  1.f - 2.f * v;
 
     Point3f p_film = position
-                     + forward
+                     + view_dir
                      + (ndc_x * film.half_w) * right
                      + (ndc_y * film.half_h) * up;
 
@@ -73,6 +70,6 @@ public:
   }
 
   Point3f position{};
-  Vector3f forward{}, right{}, up{}; // orthogonal basis
+  Vector3f view_dir{}, right{}, up{}; // orthogonal basis
   Film film{};
 };

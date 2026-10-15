@@ -58,8 +58,19 @@ target_sources(scene_module PUBLIC FILE_SET CXX_MODULES FILES
   src/scene/hit_record.cppm
   src/scene/sphere.cppm
   src/scene/disk.cppm
+  src/scene/triangle_mesh.cppm
 )
 target_link_libraries(scene_module PUBLIC types_module math_module camera_module)
+
+# -------------------------------
+#       glTF_loader module
+# -------------------------------
+add_library(glTFLoader_module)
+target_sources(glTFLoader_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/gltf_loader/gltf_loader.cppm
+)
+target_link_libraries(glTFLoader_module PUBLIC types_module math_module color_module scene_module)
+
 
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -67,4 +78,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   math_module
   camera_module
   scene_module
+  glTFLoader_module
 )
