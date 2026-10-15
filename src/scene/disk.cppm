@@ -1,18 +1,21 @@
-export module geometry:disk;
+export module scene:disk;
+
+import :hit_record;
 
 import types;
 import math;
 import camera;
-import hit;
 
 import std;
 
 export class Disk
 {
 public:
-  explicit constexpr Disk(Point3f center = Point3f{0.f}, Vector3f n = Vector3f{0.f, 1.f, 0.f}, f32 r = 1.0f)
-    : center{center}, normal{n}, radius{r}
-  {}
+  explicit constexpr Disk(Point3f center = Point3f{0.f},
+                          Vector3f n = Vector3f{0.f, 1.f, 0.f},
+                          f32 r = 1.0f,
+                          Color3f reflectance = {0.7f, 0.7f, 0.7f})
+  : center{center}, normal{n}, radius{r}, reflectance{reflectance} {}
 
   std::optional<HitRecord> intersect(const Ray& ray, f32 t_min = 1e-4, f32 t_max = MAX_FLOAT_32) const noexcept
   {
@@ -35,10 +38,12 @@ public:
     hit.t = t;
     hit.p = p;
     hit.n = (denom < 0.f) ? normal : -normal;
+    hit.reflectance = reflectance;
     return hit;
   }
 
   Point3f  center{};
   Vector3f normal{};
   f32 radius;
+  Color3f reflectance{};
 };

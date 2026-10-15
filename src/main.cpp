@@ -4,10 +4,11 @@ import types;
 import math;
 import camera;
 import color;
-import geometry;
+import scene;
 
 constexpr Color3f sphere_reflectance{ 0.8f, 0.3f, 0.3f };
 constexpr Color3f disk_reflectance  { 0.7f, 0.7f, 0.7f };
+
 
 struct UniformRandomGenerator
 {
@@ -91,68 +92,40 @@ f32 lambert_pdf(const Vector3f& wo, const Vector3f& wi)
   return wi.z / PI; // (cos theta) / (pi)
 }
 
-std::optional<ShadingSample> sample_diffuse(const Point3f&              p,
-                                            const Vector3f&             n,
-                                            const Vector3f&             ray_dir,
-                                            const Color3f&              reflectance,
-                                            UniformRandomGenerator&     rng)
+
+Color3f ray_color(const Ray&              r,
+                  const Scene&            scene,
+                  UniformRandomGenerator& rng,
+                  i32                     depth)
 {
+  if (depth <= 0)
+    return Color3f{0.f};
+
+  auto sky_color = [](Vector3f d){ f32 t = 0.5f * (d.y + 1.f); return lerp(Color3f{1.f, 1.f, 1.f}, Color3f{0.5f, 0.7f, 1.f}, t); };
+
+  auto hit = scene.intersect(r);
+  if (!hit)
+    return sky_color(r.d);
+
   // shading frame coordinate system (s,t,n)
-  ShadingFrame frame = ShadingFrame::from_normal(n);
-  Vector3f wo_local = frame.to_local(-ray_dir);
+  ShadingFrame frame = ShadingFrame::from_normal(hit->n);
+  Vector3f wo_local = frame.to_local(-r.d);
 
   // sample w_i direction uniformly
   Vector2f u{ rng.uniform(), rng.uniform() };
   Vector3f wi_local = sample_cosine_hemisphere(u);
 
   // BRDF, PDF, coseno
-  Color3f f_r       = lambert_brdf(wo_local, wi_local, reflectance);
+  Color3f f_r       = lambert_brdf(wo_local, wi_local, hit->reflectance);
   f32     pdf       = lambert_pdf (wo_local, wi_local);
   f32     cos_theta = wi_local.z;
-
-  if (pdf <= 0.f)
-    return std::nullopt;
 
   // Monte Carlo
   Color3f weight = f_r * (cos_theta / pdf);
 
   Vector3f wi_world = frame.to_world(wi_local);
-  Ray reflected_ray{ p + 1e-4f * n, wi_world };
-  return ShadingSample{ weight, reflected_ray };
-}
-
-Color3f ray_color(const Ray&                r,
-                  std::span<Sphere, 3>      spheres,
-                  const Disk&               disk,
-                  UniformRandomGenerator&   rng,
-                  i32                       depth)
-{
-  if (depth <= 0)
-    return Color3f{0.f};
-
-  // helper used for shading + recursion
-  auto lambertian_shading = [&](const Point3f& p, Vector3f n, const Color3f& reflectance)
-  {
-    if (dot(n, r.d) > 0.f)
-      n = -n;
-
-    auto s = sample_diffuse(p, n, r.d, reflectance, rng);
-    if (!s) return Color3f{0.f};
-
-    Color3f L_i = ray_color(s->reflected_ray, spheres, disk, rng, depth - 1);
-    return s->weight * L_i;
-  };
-
-  for(auto sphere : spheres)
-  {
-    if (auto hit = sphere.intersect(r))
-      return lambertian_shading(hit->p, hit->n, sphere_reflectance);
-  }
-  if (auto hit = disk.intersect(r))
-    return lambertian_shading(hit->p, hit->n, disk_reflectance);
-
-  f32 t = 0.5f * (r.d.y + 1.f);
-  return lerp(Color3f{1.f, 1.f, 1.f}, Color3f{0.5f, 0.7f, 1.f}, t);
+  Ray reflected_ray{ hit->p + 1e-4f * hit->n, wi_world };
+  return weight * ray_color(reflected_ray, scene, rng, depth - 1);
 }
 
 i32 main()
@@ -163,18 +136,16 @@ i32 main()
     Point3f {0.f, 0.f, -2.f},   // at the origin
     Vector3f{0.f, 0.f, 1.f},    // forward
     60.f,                       // FOV in degrees,
-    image_width,
-    image_height
+    image_width, image_height
   };
-
-  auto spheres = std::array<Sphere, 3>{
-    Sphere{ Point3f{0.f, 0.f, 3.f} },
-    Sphere{ Point3f{3.f, 0.f, 3.f} },
-    Sphere{ Point3f{-3.f, 0.f, 3.f} },
-  };
-  Disk disk{ Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 50.f };
 
   UniformRandomGenerator rng{ 12345u };
+
+  Scene scene;
+  scene.add(Sphere{ Point3f{0.f, 0.f, 3.f} });
+  scene.add(Sphere{ Point3f{3.f, 0.f, 3.f} });
+  scene.add(Sphere{ Point3f{-3.f, 0.f, 3.f} });
+  scene.add(Disk{ Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 50.f });
 
   constexpr auto samples_per_pixel = 32;
   for (auto j = 0; j < image_height; ++j)
@@ -188,7 +159,7 @@ i32 main()
         f32 sx = rng.uniform();
         f32 sy = rng.uniform();
         Ray r = cam.generate_ray(i, j, sx, sy);
-        c += ray_color(r, std::span(spheres), disk, rng, max_depth);
+        c += ray_color(r, scene, rng, max_depth);
       }
       c = c * (1.f / samples_per_pixel);
       cam.film.at(i, j) = c;

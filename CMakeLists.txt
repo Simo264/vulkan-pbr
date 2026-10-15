@@ -12,11 +12,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# --- Lib for types module ---
+# -------------------------------
+#       Types module
+# -------------------------------
 add_library(types_module)
 target_sources(types_module PUBLIC FILE_SET CXX_MODULES FILES src/types.cppm)
 
-# --- Lib for math modules ---
+# -------------------------------
+#       Math module
+# -------------------------------
 add_library(math_module)
 target_sources(math_module PUBLIC FILE_SET CXX_MODULES FILES
   src/math/math.cppm
@@ -26,41 +30,41 @@ target_sources(math_module PUBLIC FILE_SET CXX_MODULES FILES
   src/math/transform.cppm
   src/math/utils.cppm
 )
-# math modules need types
 target_link_libraries(math_module PUBLIC types_module)
 
-# --- Lib for hit module ---
-add_library(hit_module)
-target_sources(hit_module PUBLIC FILE_SET CXX_MODULES FILES src/hit.cppm)
-target_link_libraries(hit_module PUBLIC types_module math_module)
-
-# --- Lib for color modules ---
+# -------------------------------
+#       Color module
+# -------------------------------
 add_library(color_module)
 target_sources(color_module PUBLIC FILE_SET CXX_MODULES FILES src/color.cppm)
 target_link_libraries(color_module PUBLIC types_module)
 
-# --- Lib for camera modules ---
+# -------------------------------
+#       Camera module
+# -------------------------------
 add_library(camera_module)
 target_sources(camera_module PUBLIC FILE_SET CXX_MODULES FILES
   src/camera/ray.cppm
   src/camera/camera.cppm
 )
-# camera module needs types and math modules
 target_link_libraries(camera_module PUBLIC math_module color_module)
 
-# --- Lib for geometry module ---
-add_library(geometry_module)
-target_sources(geometry_module PUBLIC FILE_SET CXX_MODULES FILES
-  src/geometry/geometry.cppm
-  src/geometry/sphere.cppm
-  src/geometry/disk.cppm
+# -------------------------------
+#       Scene module
+# -------------------------------
+add_library(scene_module)
+target_sources(scene_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/scene/scene.cppm
+  src/scene/hit_record.cppm
+  src/scene/sphere.cppm
+  src/scene/disk.cppm
 )
-target_link_libraries(geometry_module PUBLIC types_module math_module camera_module hit_module)
+target_link_libraries(scene_module PUBLIC types_module math_module camera_module)
 
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE
   types_module
   math_module
   camera_module
-  geometry_module
+  scene_module
 )
