@@ -1,7 +1,8 @@
-export module math:matrix; // export matrix submodule
+export module core.math:matrix;
 
-import types;
 import :vector;
+import core.types;
+
 
 template <i32 N, Arithmetic T>
 requires (N >= 2 && N <= 4)

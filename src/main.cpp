@@ -1,10 +1,8 @@
 import std;
 
-import types;
-import math;
-import camera;
-import color;
+import core;
 import scene;
+import camera;
 import gltf_loader;
 
 constexpr auto image_width = 640;
@@ -154,55 +152,115 @@ i32 main()
     image_width, image_height
   };
 
-  UniformRandomGenerator rng{ 12345u };
+  //UniformRandomGenerator rng{ 12345u };
 
   Scene scene;
-  scene.add(Disk{ Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 50.f });
-  scene.add(Sphere{ Point3f{0.f, 0.f, 5.f} });
+  scene.add(Disk{ Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 50.f, Color3f{0.8f} });
+  scene.add(Sphere{ Point3f{0.f, 0.f, 5.f}, 1.0f, Color3f{0.7, 0.2f, 0.2f} });
 
   auto mesh = load_gltf_model("models/cube.glb");
-  mesh.scale({1.0f});
-  mesh.rotate_y(45.f);
-  mesh.translate({3.f, 0.f, 5.f});
+  Transform M = translate(Vector3f{3.f, 0.f, 5.f}) * rotate_y(30.f) * scale({1.f});
+  mesh.apply_transformation(M);
+  mesh.reflectance = Color3f{0.2, 0.2f, 0.7f};
   scene.add(std::move(mesh));
 
-  // if(auto mesh = load_mesh("models/cylinder.glb"))
-  // {
-  //   mesh->scale({4.0, 1.0f, 4.0f});
-  //   mesh->rotate_y(0.f);
-  //   mesh->translate({-3.f, 0.f, 5.f});
-  //   mesh->reflectance = {0.8f, 0.8f, 0.8f};
-  //   scene.add(std::move(*mesh));
-  // }
+  mesh = load_gltf_model("models/cylinder.glb");
+  M = translate(Vector3f{-3.f, 0.f, 5.f}) * rotate_y(0.f) * scale({1.0});
+  mesh.apply_transformation(M);
+  mesh.reflectance = Color3f{0.9f};
+  scene.add(std::move(mesh));
 
+  constexpr auto samples_per_pixel  = 64;
+  constexpr auto max_depth          = 5;
+  constexpr auto num_threads        = 8;
+  constexpr auto tile_size          = 32; // 32x32
+  constexpr auto tiles_x = (image_width + tile_size - 1) / tile_size;
+  constexpr auto tiles_y = (image_height + tile_size - 1) / tile_size;
+  constexpr auto n_tiles = tiles_x * tiles_y;
+  std::println("Start rendering {}x{}:"
+    "\n- samples_per_pixel: {}"
+    "\n- num_threads: {}"
+    "\n- tile_size: {}"
+    "\n- tiles_x: {}"
+    "\n- tiles_y: {}"
+    "\n- n_tiles: {}",
+    image_width, image_height, samples_per_pixel, num_threads, tile_size, tiles_x, tiles_y, n_tiles);
 
-  constexpr auto samples_per_pixel = 8;
-  for (auto j = 0; j < image_height; ++j)
-  {
-    if (j % std::max(1, image_height / 20) == 0 || j == image_height - 1)
+  auto render_tile = [&](i32 tile_idx, Camera& cam, UniformRandomGenerator& rng) {
+    auto tx = tile_idx % tiles_x;
+    auto ty = tile_idx / tiles_x;
+
+    auto x0 = tx * tile_size;
+    auto y0 = ty * tile_size;
+    auto x1 = std::min(x0 + tile_size, image_width); // clamp for last tile
+    auto y1 = std::min(y0 + tile_size, image_height);
+
+    for (auto j = y0; j < y1; ++j)
     {
-      f32 pct = 100.f * static_cast<f32>(j + 1) / static_cast<f32>(image_height);
-      i32 done = (j + 1) * image_width;
-      constexpr auto total = image_width * image_height;
-      std::println("{} / {} ({:.1f}%)", done, total, pct);
-    }
-
-    for (auto i = 0; i < image_width; ++i)
-    {
-      Color3f c{0.f};
-      for (i32 sample = 0; sample < samples_per_pixel; sample++)
+      for (auto i = x0; i < x1; ++i)
       {
-        constexpr auto max_depth = 5;
-        f32 sx = rng.uniform();
-        f32 sy = rng.uniform();
-        Ray r = camera.generate_ray(i, j, sx, sy);
-        c += ray_color(r, scene, rng, max_depth);
+        Color3f c{0.f};
+        for (auto s = 0; s < samples_per_pixel; ++s)
+        {
+          Ray r = cam.generate_ray(static_cast<f32>(i), static_cast<f32>(j), rng.uniform(), rng.uniform());
+          c += ray_color(r, scene, rng, max_depth);
+        }
+        c = c / static_cast<f32>(samples_per_pixel);
+        cam.film.at(i, j) = c;
       }
-      c = c * (1.f / samples_per_pixel);
-      camera.film.at(i, j) = c;
     }
+  };
+
+  auto t_start = std::chrono::steady_clock::now();
+
+  std::atomic<i32> tiles_done{0};
+  std::atomic<i32> next_tile{0};
+  std::atomic<i32> last_pct{-1};
+  std::mutex print_mutex;
+  auto report_progress = [&]() {
+    auto done = tiles_done.load(std::memory_order_relaxed);
+    auto pct  = 100 * done / n_tiles;
+
+    if (pct == last_pct.load(std::memory_order_relaxed) && done != n_tiles)
+      return;
+
+    std::lock_guard lock(print_mutex);
+    if (pct == last_pct.load(std::memory_order_relaxed) && done != n_tiles)
+      return;
+    last_pct.store(pct, std::memory_order_relaxed);
+
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration<f64>(now - t_start).count();
+    auto eta = (done > 0) ? elapsed * (n_tiles - done) / done : 0.0;
+    std::println("[{:>3}%] {}/{} tiles  {:.1f}s elapsed, {:.1f}s ETA", pct, done, n_tiles, elapsed, eta);
+  };
+
+  std::vector<std::jthread> workers;
+  workers.reserve(num_threads);
+  for (auto t = 0; t < num_threads; ++t)
+  {
+    workers.emplace_back([&, t](std::stop_token st) {
+      UniformRandomGenerator rng{ 12345u + static_cast<u32>(t) * 1000u };
+      while (!st.stop_requested())
+      {
+        auto tile_idx = next_tile.fetch_add(1, std::memory_order_relaxed);
+        if (tile_idx >= n_tiles)
+          break;
+        render_tile(tile_idx, camera, rng);
+        tiles_done.fetch_add(1, std::memory_order_relaxed);
+        //std::println("worker {} done, tiles_done = {}", t, tiles_done.load());
+        report_progress();
+      }
+    });
   }
 
-  save_image(camera, "output_tmp.ppm");
+  for (auto& w : workers)
+    w.join();
+
+  auto t_end = std::chrono::steady_clock::now();
+  auto elapsed = std::chrono::duration<f64>(t_end - t_start).count();
+  std::println("Rendered in {:.2f} s", elapsed);
+
+  save_image(camera, "output.ppm");
   return 0;
 }

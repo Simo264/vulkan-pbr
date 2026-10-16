@@ -2,10 +2,7 @@ export module camera;
 
 export import :ray;
 
-import types;
-import math;
-import color;
-
+import core;
 import std;
 
 export struct Film

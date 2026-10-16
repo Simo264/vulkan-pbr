@@ -1,7 +1,7 @@
-export module math:point; // export point submodule
+export module core.math:point;
 
 import :vector;
-import types;
+import core.types;
 
 template<Arithmetic T>
 struct Point2

@@ -2,23 +2,24 @@ export module scene:triangle_mesh;
 
 import :hit_record;
 
-import types;
-import math;
-import color;
+import core.types;
+import core.math;
+import core.color;
+
 import camera;
 import std;
 
 struct TriangleHit
 {
   f32 t{};
-  f32 b0{}, b1{}, b2{};  // barycentric coordinates
+  f32 b0{}, b1{}, b2{}; // barycentric coordinates
 };
 std::optional<TriangleHit> ray_triangle(const Ray& ray, const Point3f& p0, const Point3f& p1, const Point3f& p2, f32 t_min, f32 t_max);
 
 export class TriangleMesh
 {
 public:
-  TriangleMesh(Color3f reflectance = {0.3, 0.3, 0.8}) : reflectance{reflectance} {}
+  TriangleMesh(Color3f reflectance = Color3f{1.0f}) : reflectance{reflectance} {}
   TriangleMesh(const TriangleMesh&) = default;
   TriangleMesh(TriangleMesh&&) noexcept = default;
   TriangleMesh& operator=(const TriangleMesh&) = default;
@@ -26,47 +27,20 @@ public:
 
   i32 triangle_count() const { return static_cast<i32>(indices.size()); }
 
-  TriangleMesh& scale(const Vector3f& s)
+  TriangleMesh& apply_transformation(const Transform& t)
   {
-    for (auto& p : positions) { p.x *= s.x; p.y *= s.y; p.z *= s.z; }
-    for (auto& n : normals) { n.x /= s.x; n.y /= s.y; n.z /= s.z; n = normalize(n); }
-    return *this;
-  }
-  TriangleMesh& translate(const Vector3f& t)
-  {
-    for (auto& p : positions) { p.x += t.x; p.y += t.y; p.z += t.z; }
-    return *this;
-  }
-  TriangleMesh& rotate_x(f32 deg)
-  {
-    f32 a = to_radians(deg);
-    f32 c = std::cos(a);
-    f32 s = std::sin(a);
+    for (auto& p : positions)
+      p = t(p);
 
-    for (auto& p : positions) { f32 y = p.y; f32 z = p.z; p.y = c * y - s * z; p.z = s * y + c * z; }
-    for (auto& n : normals)   { f32 y = n.y; f32 z = n.z; n.y = c * y - s * z; n.z = s * y + c * z; }
+    for (auto& n : normals)
+    {
+      Normal3f nn{n.x, n.y, n.z};
+      Normal3f tn = t(nn);
+      n = normalize(Vector3f{tn.x, tn.y, tn.z});
+    }
     return *this;
   }
-  TriangleMesh& rotate_y(f32 deg)
-  {
-    f32 a = to_radians(deg);
-    f32 c = std::cos(a);
-    f32 s = std::sin(a);
 
-    for (auto& p : positions) { f32 x = p.x; f32 z = p.z; p.x =  c * x + s * z; p.z = -s * x + c * z; }
-    for (auto& n : normals)   { f32 x = n.x; f32 z = n.z; n.x =  c * x + s * z; n.z = -s * x + c * z; }
-    return *this;
-  }
-  TriangleMesh& rotate_z(f32 deg)
-  {
-    f32 a = to_radians(deg);
-    f32 c = std::cos(a);
-    f32 s = std::sin(a);
-
-    for (auto& p : positions) { f32 x = p.x; f32 y = p.y; p.x = c * x - s * y; p.y = s * x + c * y; }
-    for (auto& n : normals)   { f32 x = n.x; f32 y = n.y; n.x = c * x - s * y; n.y = s * x + c * y; }
-    return *this;
-  }
   std::optional<HitRecord> intersect(const Ray& ray, f32 t_min = 1e-4f, f32 t_max = MAX_FLOAT_32) const
   {
     std::optional<HitRecord> best;

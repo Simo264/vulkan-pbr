@@ -2,10 +2,10 @@ export module scene:sphere;
 
 import :hit_record;
 
-import types;
-import math;
+import core.types;
+import core.math;
+import core.color;
 import camera;
-
 import std;
 
 export class Sphere
@@ -13,7 +13,7 @@ export class Sphere
 public:
   explicit constexpr Sphere(Point3f   center = Point3f{0.f, 0.f, 0.f},
                             f32       radius = 1.0f,
-                            Color3f   reflectance = {0.8f,0.15f,0.15f})
+                            Color3f   reflectance = Color3f{1.0f})
   : center{center}, radius{radius}, reflectance{reflectance} {}
 
   std::optional<HitRecord> intersect(const Ray& ray, f32 t_min = 1e-4, f32 t_max = MAX_FLOAT_32) const noexcept

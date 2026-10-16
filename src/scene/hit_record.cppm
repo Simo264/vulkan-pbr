@@ -1,8 +1,8 @@
 export module scene:hit_record;
 
-import types;
-import math;
-import color;
+import core.types;
+import core.math;
+import core.color;
 
 export struct HitRecord
 {

@@ -1,8 +1,7 @@
-module;
-#include <cmath>
+export module core.math:vector;
 
-export module math:vector; // export vector submodule
-import types;
+import core.types;
+import std;
 
 template<Arithmetic T>
 struct Vector2

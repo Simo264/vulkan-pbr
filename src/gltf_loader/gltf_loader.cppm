@@ -6,9 +6,7 @@ module;
 
 export module gltf_loader;
 
-import types;
-import math;
-import color;
+import core;
 import scene;
 import std;
 

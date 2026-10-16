@@ -13,31 +13,52 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # -------------------------------
-#       Types module
+#       Core.Types module
 # -------------------------------
-add_library(types_module)
-target_sources(types_module PUBLIC FILE_SET CXX_MODULES FILES src/types.cppm)
-
-# -------------------------------
-#       Math module
-# -------------------------------
-add_library(math_module)
-target_sources(math_module PUBLIC FILE_SET CXX_MODULES FILES
-  src/math/math.cppm
-  src/math/vector.cppm
-  src/math/point.cppm
-  src/math/matrix.cppm
-  src/math/transform.cppm
-  src/math/utils.cppm
+add_library(core_types_module)
+target_sources(core_types_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/core/types.cppm
 )
-target_link_libraries(math_module PUBLIC types_module)
 
 # -------------------------------
-#       Color module
+#       Core.Math module
 # -------------------------------
-add_library(color_module)
-target_sources(color_module PUBLIC FILE_SET CXX_MODULES FILES src/color.cppm)
-target_link_libraries(color_module PUBLIC types_module)
+add_library(core_math_module)
+target_sources(core_math_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/core/math/math.cppm
+  src/core/math/vector.cppm
+  src/core/math/point.cppm
+  src/core/math/matrix.cppm
+  src/core/math/transform.cppm
+  src/core/math/utils.cppm
+)
+target_link_libraries(core_math_module PUBLIC
+  core_types_module
+)
+
+# -------------------------------
+#       Core.Color module
+# -------------------------------
+add_library(core_color_module)
+target_sources(core_color_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/core/color.cppm
+)
+target_link_libraries(core_color_module PUBLIC
+  core_types_module
+)
+
+# -------------------------------
+#       Core module
+# -------------------------------
+add_library(core_module)
+target_sources(core_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/core/core.cppm
+)
+target_link_libraries(core_module PUBLIC
+  core_types_module
+  core_math_module
+  core_color_module
+)
 
 # -------------------------------
 #       Camera module
@@ -47,7 +68,9 @@ target_sources(camera_module PUBLIC FILE_SET CXX_MODULES FILES
   src/camera/ray.cppm
   src/camera/camera.cppm
 )
-target_link_libraries(camera_module PUBLIC math_module color_module)
+target_link_libraries(camera_module PUBLIC
+  core_module
+)
 
 # -------------------------------
 #       Scene module
@@ -60,7 +83,10 @@ target_sources(scene_module PUBLIC FILE_SET CXX_MODULES FILES
   src/scene/disk.cppm
   src/scene/triangle_mesh.cppm
 )
-target_link_libraries(scene_module PUBLIC types_module math_module camera_module)
+target_link_libraries(scene_module PUBLIC
+  core_module
+  camera_module
+)
 
 # -------------------------------
 #       glTF_loader module
@@ -69,13 +95,17 @@ add_library(glTFLoader_module)
 target_sources(glTFLoader_module PUBLIC FILE_SET CXX_MODULES FILES
   src/gltf_loader/gltf_loader.cppm
 )
-target_link_libraries(glTFLoader_module PUBLIC types_module math_module color_module scene_module)
+target_link_libraries(glTFLoader_module PUBLIC
+  core_module
+  scene_module
+)
 
-
+# -------------------------------
+#       executable file
+# -------------------------------
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE
-  types_module
-  math_module
+  core_module
   camera_module
   scene_module
   glTFLoader_module

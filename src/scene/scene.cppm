@@ -5,9 +5,7 @@ export import :sphere;
 export import :disk;
 export import :triangle_mesh;
 
-import types;
-import math;
-import color;
+import core;
 
 export using SceneObject = std::variant<Sphere, Disk, TriangleMesh>;
 

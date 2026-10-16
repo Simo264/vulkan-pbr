@@ -2,8 +2,9 @@ export module scene:disk;
 
 import :hit_record;
 
-import types;
-import math;
+import core.types;
+import core.math;
+import core.color;
 import camera;
 
 import std;
@@ -14,10 +15,10 @@ public:
   explicit constexpr Disk(Point3f center = Point3f{0.f},
                           Vector3f n = Vector3f{0.f, 1.f, 0.f},
                           f32 r = 1.0f,
-                          Color3f reflectance = {0.7f, 0.7f, 0.7f})
+                          Color3f reflectance = Color3f{1.0f})
   : center{center}, normal{n}, radius{r}, reflectance{reflectance} {}
 
-  std::optional<HitRecord> intersect(const Ray& ray, f32 t_min = 1e-4, f32 t_max = MAX_FLOAT_32) const noexcept
+  std::optional<HitRecord> intersect(const Ray& ray, f32 t_min = 1e-4, f32 t_max = MAX_FLOAT_32) const
   {
     f32 denom = dot(normal, ray.d);
 
