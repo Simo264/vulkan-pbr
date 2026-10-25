@@ -23,6 +23,9 @@ struct Point3
   constexpr Point3& operator-=(const Vector3<T>& v) noexcept { x -= v.x; y -= v.y; z -= v.z; return *this; }
   constexpr Point3& operator*=(T s) noexcept { x *= s; y *= s; z *= s; return *this; }
   constexpr Point3& operator/=(T s) noexcept { x /= s; y /= s; z /= s; return *this; }
+
+  constexpr T  operator[](i32 i) const { switch (i) { case 0: return x; case 1: return y; default: return z; } }
+  constexpr T& operator[](i32 i)       { switch (i) { case 0: return x; case 1: return y; default: return z; } }
 };
 
 export {

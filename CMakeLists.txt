@@ -16,9 +16,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #       Core.Types module
 # -------------------------------
 add_library(core_types_module)
-target_sources(core_types_module PUBLIC FILE_SET CXX_MODULES FILES
-  src/core/types.cppm
-)
+target_sources(core_types_module PUBLIC FILE_SET CXX_MODULES FILES src/core/types.cppm)
 
 # -------------------------------
 #       Core.Math module
@@ -32,33 +30,21 @@ target_sources(core_math_module PUBLIC FILE_SET CXX_MODULES FILES
   src/core/math/transform.cppm
   src/core/math/utils.cppm
 )
-target_link_libraries(core_math_module PUBLIC
-  core_types_module
-)
+target_link_libraries(core_math_module PUBLIC core_types_module)
 
 # -------------------------------
 #       Core.Color module
 # -------------------------------
 add_library(core_color_module)
-target_sources(core_color_module PUBLIC FILE_SET CXX_MODULES FILES
-  src/core/color.cppm
-)
-target_link_libraries(core_color_module PUBLIC
-  core_types_module
-)
+target_sources(core_color_module PUBLIC FILE_SET CXX_MODULES FILES src/core/color.cppm)
+target_link_libraries(core_color_module PUBLIC core_types_module)
 
 # -------------------------------
 #       Core module
 # -------------------------------
 add_library(core_module)
-target_sources(core_module PUBLIC FILE_SET CXX_MODULES FILES
-  src/core/core.cppm
-)
-target_link_libraries(core_module PUBLIC
-  core_types_module
-  core_math_module
-  core_color_module
-)
+target_sources(core_module PUBLIC FILE_SET CXX_MODULES FILES src/core/core.cppm)
+target_link_libraries(core_module PUBLIC core_types_module core_math_module core_color_module)
 
 # -------------------------------
 #       Camera module
@@ -68,8 +54,41 @@ target_sources(camera_module PUBLIC FILE_SET CXX_MODULES FILES
   src/camera/ray.cppm
   src/camera/camera.cppm
 )
-target_link_libraries(camera_module PUBLIC
+target_link_libraries(camera_module PUBLIC core_module)
+
+# -------------------------------
+#       BVH module
+# -------------------------------
+add_library(bvh_module)
+target_sources(bvh_module PUBLIC FILE_SET CXX_MODULES FILES src/bvh/bvh.cppm src/bvh/bbox.cppm)
+target_link_libraries(bvh_module PUBLIC
   core_module
+  camera_module
+)
+
+# -------------------------------
+#       Hit_record module
+# -------------------------------
+add_library(hitrecord_module)
+target_sources(hitrecord_module PUBLIC FILE_SET CXX_MODULES FILES src/hit_record.cppm)
+target_link_libraries(hitrecord_module PUBLIC core_module)
+
+# -------------------------------
+#       Primitives module
+# -------------------------------
+add_library(primitives_module)
+target_sources(primitives_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/primitives/plane.cppm
+  src/primitives/disk.cppm
+  src/primitives/sphere.cppm
+  src/primitives/triangle.cppm
+  src/primitives/triangle_mesh.cppm
+)
+target_link_libraries(primitives_module PUBLIC
+  core_module
+  camera_module
+  hitrecord_module
+  bvh_module
 )
 
 # -------------------------------
@@ -77,28 +96,23 @@ target_link_libraries(camera_module PUBLIC
 # -------------------------------
 add_library(scene_module)
 target_sources(scene_module PUBLIC FILE_SET CXX_MODULES FILES
-  src/scene/scene.cppm
-  src/scene/hit_record.cppm
-  src/scene/sphere.cppm
-  src/scene/disk.cppm
-  src/scene/triangle_mesh.cppm
+  src/scene.cppm
+
 )
 target_link_libraries(scene_module PUBLIC
   core_module
   camera_module
+  primitives_module
+  hitrecord_module
+  bvh_module
 )
 
 # -------------------------------
 #       glTF_loader module
 # -------------------------------
 add_library(glTFLoader_module)
-target_sources(glTFLoader_module PUBLIC FILE_SET CXX_MODULES FILES
-  src/gltf_loader/gltf_loader.cppm
-)
-target_link_libraries(glTFLoader_module PUBLIC
-  core_module
-  scene_module
-)
+target_sources(glTFLoader_module PUBLIC FILE_SET CXX_MODULES FILES src/gltf_loader/gltf_loader.cppm)
+target_link_libraries(glTFLoader_module PUBLIC core_module scene_module)
 
 # -------------------------------
 #       executable file
@@ -108,5 +122,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   core_module
   camera_module
   scene_module
+  primitives_module
   glTFLoader_module
 )

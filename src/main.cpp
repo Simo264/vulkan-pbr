@@ -3,7 +3,13 @@ import std;
 import core;
 import scene;
 import camera;
+import bvh;
 import gltf_loader;
+
+import primitives.plane;
+import primitives.disk;
+import primitives.sphere;
+import primitives.triangle_mesh;
 
 constexpr auto image_width = 640;
 constexpr auto image_height = 360;
@@ -146,46 +152,44 @@ void save_image(Camera& cam, std::string_view filename)
 i32 main()
 {
   Camera camera{
-    Point3f{0.f, 2.f, -1.f},   // position
+    Point3f{0.f, 2.f, -6.f},   // position
     Point3f{0.f, 0.f, 5.f},    // look at
-    50.f,                      // FOV in degrees,
+    60.f,                      // FOV in degrees,
     image_width, image_height
   };
 
-  //UniformRandomGenerator rng{ 12345u };
+  // ==============================
+  // Set up scene
+  // ==============================
 
   Scene scene;
-  scene.add(Disk{ Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 50.f, Color3f{0.8f} });
-  scene.add(Sphere{ Point3f{0.f, 0.f, 5.f}, 1.0f, Color3f{0.7, 0.2f, 0.2f} });
+  //scene.add(Disk{Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 5.f,Color3f{0.9f}});
+  //scene.add(Sphere{Point3f{0.f, 0.f, 0.f}, 1.0f, Color3f{0.7, 0.2f, 0.2f}});
+  //scene.add(Sphere{Point3f{-3.f, 0.f, 0.f}, 1.0f, Color3f{0.7, 0.2f, 0.2f}});
 
-  auto mesh = load_gltf_model("models/cube.glb");
-  Transform M = translate(Vector3f{3.f, 0.f, 5.f}) * rotate_y(30.f) * scale({1.f});
+  auto mesh = load_gltf_model("models/Horse-Statue.glb");
+  Transform M = translate(Vector3f{.0f, 0.f, 0.f}) * rotate_x(0.f) * rotate_y(0.0f) * rotate_z(0.0f) * scale({70.f});
   mesh.apply_transformation(M);
-  mesh.reflectance = Color3f{0.2, 0.2f, 0.7f};
-  scene.add(std::move(mesh));
-
-  mesh = load_gltf_model("models/cylinder.glb");
-  M = translate(Vector3f{-3.f, 0.f, 5.f}) * rotate_y(0.f) * scale({1.0});
-  mesh.apply_transformation(M);
+  mesh.build_mesh_bvh();
   mesh.reflectance = Color3f{0.9f};
   scene.add(std::move(mesh));
 
-  constexpr auto samples_per_pixel  = 64;
+  scene.build_bvh();
+
+
+
+
+  // ==============================
+  // Prepare for rendering
+  // ==============================
+
+  constexpr auto samples_per_pixel  = 4;
   constexpr auto max_depth          = 5;
   constexpr auto num_threads        = 8;
   constexpr auto tile_size          = 32; // 32x32
   constexpr auto tiles_x = (image_width + tile_size - 1) / tile_size;
   constexpr auto tiles_y = (image_height + tile_size - 1) / tile_size;
   constexpr auto n_tiles = tiles_x * tiles_y;
-  std::println("Start rendering {}x{}:"
-    "\n- samples_per_pixel: {}"
-    "\n- num_threads: {}"
-    "\n- tile_size: {}"
-    "\n- tiles_x: {}"
-    "\n- tiles_y: {}"
-    "\n- n_tiles: {}",
-    image_width, image_height, samples_per_pixel, num_threads, tile_size, tiles_x, tiles_y, n_tiles);
-
   auto render_tile = [&](i32 tile_idx, Camera& cam, UniformRandomGenerator& rng) {
     auto tx = tile_idx % tiles_x;
     auto ty = tile_idx / tiles_x;
@@ -246,9 +250,9 @@ i32 main()
         auto tile_idx = next_tile.fetch_add(1, std::memory_order_relaxed);
         if (tile_idx >= n_tiles)
           break;
+
         render_tile(tile_idx, camera, rng);
         tiles_done.fetch_add(1, std::memory_order_relaxed);
-        //std::println("worker {} done, tiles_done = {}", t, tiles_done.load());
         report_progress();
       }
     });
@@ -260,7 +264,6 @@ i32 main()
   auto t_end = std::chrono::steady_clock::now();
   auto elapsed = std::chrono::duration<f64>(t_end - t_start).count();
   std::println("Rendered in {:.2f} s", elapsed);
-
   save_image(camera, "output.ppm");
   return 0;
 }

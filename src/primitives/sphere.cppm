@@ -1,11 +1,9 @@
-export module scene:sphere;
+export module primitives.sphere;
 
-import :hit_record;
-
-import core.types;
-import core.math;
-import core.color;
+import core;
 import camera;
+import hit_record;
+import bvh;
 import std;
 
 export class Sphere
@@ -16,7 +14,7 @@ public:
                             Color3f   reflectance = Color3f{1.0f})
   : center{center}, radius{radius}, reflectance{reflectance} {}
 
-  std::optional<HitRecord> intersect(const Ray& ray, f32 t_min = 1e-4, f32 t_max = MAX_FLOAT_32) const noexcept
+  std::optional<HitRecord> intersect(const Ray& ray, f32 t_min, f32 t_max) const
   {
     Vector3f oc = ray.o - center;
 
@@ -45,6 +43,13 @@ public:
     hit.reflectance = reflectance;
     return hit;
   }
+
+  BoundingBox3 bounding_box() const
+  {
+    Vector3f r{radius, radius, radius};
+    return BoundingBox3{ center - r, center + r };
+  }
+  Point3f centroid() const { return center; }
 
   Point3f center{};
   f32 radius{};

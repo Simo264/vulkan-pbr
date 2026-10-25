@@ -7,7 +7,7 @@ module;
 export module gltf_loader;
 
 import core;
-import scene;
+import primitives.triangle_mesh;
 import std;
 
 template <typename T>
@@ -149,20 +149,52 @@ export TriangleMesh load_gltf_model(const std::filesystem::path& inputfile)
       }
 
       // Materials
-      if (primitive.material >= 0 && mesh.reflectance.r == 0 && mesh.reflectance.g == 0 && mesh.reflectance.b == 0)
-      {
-        const auto& mat = model.materials[primitive.material];
-        if (mat.pbrMetallicRoughness.baseColorFactor.size() >= 3)
-        {
-            mesh.reflectance = Color3f(static_cast<f32>(mat.pbrMetallicRoughness.baseColorFactor[0]),
-                                       static_cast<f32>(mat.pbrMetallicRoughness.baseColorFactor[1]),
-                                       static_cast<f32>(mat.pbrMetallicRoughness.baseColorFactor[2]));
-        }
-      }
+      // if (primitive.material >= 0 && mesh.reflectance.r == 0 && mesh.reflectance.g == 0 && mesh.reflectance.b == 0)
+      // {
+      //   const auto& mat = model.materials[primitive.material];
+      //   if (mat.pbrMetallicRoughness.baseColorFactor.size() >= 3)
+      //   {
+      //       mesh.reflectance = Color3f(static_cast<f32>(mat.pbrMetallicRoughness.baseColorFactor[0]),
+      //                                  static_cast<f32>(mat.pbrMetallicRoughness.baseColorFactor[1]),
+      //                                  static_cast<f32>(mat.pbrMetallicRoughness.baseColorFactor[2]));
+      //   }
+      // }
 
       vertex_offset += static_cast<u32>(positions.size());
     }
   }
 
+  auto format_bytes = [](usize b) {
+      constexpr auto KB = 1024.0;
+      constexpr auto MB = KB * 1024.0;
+      constexpr auto GB = MB * 1024.0;
+      if (b >= GB) return std::format("{:.2f} GB", b / GB);
+      if (b >= MB) return std::format("{:.2f} MB", b / MB);
+      if (b >= KB) return std::format("{:.2f} KB", b / KB);
+      return std::format("{} B", b);
+  };
+
+  auto n_vertices  = mesh.positions.size();
+  auto n_triangles = mesh.indices.size();
+  auto n_indices   = n_triangles * 3;   // 3 int per triangolo
+
+  auto mem_positions = n_vertices  * sizeof(Point3f);
+  auto mem_normals   = mesh.normals.size()  * sizeof(Vector3f);
+  auto mem_uvs       = mesh.uvs.size()      * sizeof(Point2f);
+  auto mem_indices   = n_triangles * sizeof(Vector3i);
+  auto mem_total     = mem_positions + mem_normals + mem_uvs + mem_indices;
+
+  std::println("glTF model: {}", inputfile.filename().string());
+  std::println("  meshes:    {}", model.meshes.size());
+  std::println("  vertices:  {}", n_vertices);
+  std::println("  triangles: {}", n_triangles);
+  std::println("  indices:   {} ({} × 3)", n_indices, n_triangles);
+  std::println("  memory:");
+  std::println("    positions: {:>10}", format_bytes(mem_positions));
+  std::println("    normals:   {:>10}", format_bytes(mem_normals));
+  std::println("    uvs:       {:>10}", format_bytes(mem_uvs));
+  std::println("    indices:   {:>10}", format_bytes(mem_indices));
+  std::println("    total:     {:>10}", format_bytes(mem_total));
+  std::println();
   return mesh;
 }

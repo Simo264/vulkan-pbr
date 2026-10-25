@@ -1,8 +1,6 @@
-export module scene:hit_record;
+export module hit_record;
 
-import core.types;
-import core.math;
-import core.color;
+import core;
 
 export struct HitRecord
 {
@@ -10,4 +8,10 @@ export struct HitRecord
   Point3f  p{};           // hit point
   Vector3f n{};           // surface normal vector
   Color3f  reflectance{}; // the material property
+};
+
+export struct TriangleHit
+{
+  f32 t{};
+  f32 b0{}, b1{}, b2{}; // barycentric coordinates
 };
