@@ -61,6 +61,8 @@ struct Normal3
   constexpr Normal3& operator-=(const Normal3& o) { x -= o.x; y -= o.y; z -= o.z; return *this; }
   constexpr Normal3& operator*=(T s)              { x *= s;   y *= s;   z *= s;   return *this; }
   constexpr Normal3& operator/=(T s)              { x /= s;   y /= s;   z /= s;   return *this; }
+
+  constexpr Vector3<T> to_vector() const { return Vector3<T>{ x, y, z }; }
 };
 
 

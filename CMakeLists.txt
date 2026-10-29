@@ -81,6 +81,7 @@ target_sources(primitives_module PUBLIC FILE_SET CXX_MODULES FILES
   src/primitives/plane.cppm
   src/primitives/disk.cppm
   src/primitives/sphere.cppm
+  src/primitives/cube.cppm
   src/primitives/triangle.cppm
   src/primitives/triangle_mesh.cppm
 )
@@ -88,7 +89,6 @@ target_link_libraries(primitives_module PUBLIC
   core_module
   camera_module
   hitrecord_module
-  bvh_module
 )
 
 # -------------------------------
@@ -104,7 +104,6 @@ target_link_libraries(scene_module PUBLIC
   camera_module
   primitives_module
   hitrecord_module
-  bvh_module
 )
 
 # -------------------------------

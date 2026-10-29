@@ -3,7 +3,6 @@ export module primitives.plane;
 import core;
 import camera;
 import hit_record;
-import bvh;
 import std;
 
 export class Plane
@@ -28,12 +27,6 @@ public:
     hit.reflectance = reflectance;
     return hit;
   }
-
-  BoundingBox3 bounding_box() const
-  {
-    return BoundingBox3{}; // invalid box for infinite plane
-  }
-  Point3f centroid() const { return center; }
 
   Point3f center{};
   Vector3f normal{};

@@ -2,7 +2,6 @@ export module primitives.triangle;
 
 import core;
 import hit_record;
-import bvh;
 import camera;
 import std;
 
@@ -10,20 +9,6 @@ export class Triangle
 {
 public:
   explicit Triangle(const Point3f& p0, const Point3f& p1, const Point3f& p2) : p0{p0}, p1{p1}, p2{p2} {}
-
-  Point3f centroid() const { return p0 + ((p1 - p0) + (p2 - p0)) * (1.f / 3.f); }
-
-  BoundingBox3 bounding_box() const
-  {
-    return BoundingBox3{
-      Point3f{std::min({p0.x, p1.x, p2.x}),
-              std::min({p0.y, p1.y, p2.y}),
-              std::min({p0.z, p1.z, p2.z})},
-      Point3f{std::max({p0.x, p1.x, p2.x}),
-              std::max({p0.y, p1.y, p2.y}),
-              std::max({p0.z, p1.z, p2.z})}
-    };
-  }
 
   std::optional<TriangleHit> intersect(const Ray& ray, f32 t_min, f32 t_max) const
   {

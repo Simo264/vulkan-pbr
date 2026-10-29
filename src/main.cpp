@@ -3,11 +3,11 @@ import std;
 import core;
 import scene;
 import camera;
-import bvh;
 import gltf_loader;
 
 import primitives.plane;
 import primitives.disk;
+import primitives.cube;
 import primitives.sphere;
 import primitives.triangle_mesh;
 
@@ -163,27 +163,20 @@ i32 main()
   // ==============================
 
   Scene scene;
-  //scene.add(Disk{Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 5.f,Color3f{0.9f}});
-  //scene.add(Sphere{Point3f{0.f, 0.f, 0.f}, 1.0f, Color3f{0.7, 0.2f, 0.2f}});
-  //scene.add(Sphere{Point3f{-3.f, 0.f, 0.f}, 1.0f, Color3f{0.7, 0.2f, 0.2f}});
+  scene.add(Disk{Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 5.f,Color3f{0.9f}});
+  scene.add(Sphere{Point3f{0.f, 0.f, 0.f}, 1.0f, Color3f{0.7, 0.2f, 0.2f}});
+  scene.add(Sphere{Point3f{-3.f, 0.f, 0.f}, 1.0f, Color3f{0.7, 0.2f, 0.2f}});
 
-  auto mesh = load_gltf_model("models/Horse-Statue.glb");
-  Transform M = translate(Vector3f{.0f, 0.f, 0.f}) * rotate_x(0.f) * rotate_y(0.0f) * rotate_z(0.0f) * scale({70.f});
-  mesh.apply_transformation(M);
-  mesh.build_mesh_bvh();
-  mesh.reflectance = Color3f{0.9f};
-  scene.add(std::move(mesh));
-
-  scene.build_bvh();
-
-
+  auto cube = Cube{ Point3f{3.f, 0.f, 0.f}, Color3f{0.3f, 0.7f, 0.9f} };
+  cube.set_transform(translate(Point3f{3.f, 0.f, 0.f}) * rotate_y(45.f) * scale(Vector3f{2.f, 2.f, 2.f}));
+  scene.add(cube);
 
 
   // ==============================
   // Prepare for rendering
   // ==============================
 
-  constexpr auto samples_per_pixel  = 4;
+  constexpr auto samples_per_pixel  = 256;
   constexpr auto max_depth          = 5;
   constexpr auto num_threads        = 8;
   constexpr auto tile_size          = 32; // 32x32

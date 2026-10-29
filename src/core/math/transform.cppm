@@ -107,9 +107,9 @@ export {
   }
   Transform rotate_y(f32 angle_degrees)
   {
-    const f32 rad = to_radians(angle_degrees);
-    const f32 s   = std::sin(rad);
-    const f32 c   = std::cos(rad);
+    f32 rad = to_radians(angle_degrees);
+    f32 s   = std::sin(rad);
+    f32 c   = std::cos(rad);
 
     Matrix4f m = Matrix4f::identity();
     m.m[0][0] =  c;

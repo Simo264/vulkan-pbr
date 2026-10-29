@@ -3,7 +3,6 @@ export module primitives.disk;
 import core;
 import camera;
 import hit_record;
-import bvh;
 import std;
 
 export class Disk
@@ -33,13 +32,6 @@ public:
     hit.reflectance = reflectance;
     return hit;
   }
-
-  BoundingBox3 bounding_box() const
-  {
-    Vector3f r{radius, radius, radius};
-    return BoundingBox3{ center - r, center + r };
-  }
-  Point3f centroid() const { return center; }
 
   Point3f center{};
   Vector3f normal{};
