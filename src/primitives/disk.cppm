@@ -1,16 +1,18 @@
-export module primitives.disk;
+export module primitives:disk;
 
 import core;
 import camera;
 import hit_record;
+import materials;
 import std;
 
 export class Disk
 {
 public:
-  explicit constexpr Disk(Point3f p, Vector3f n, f32 r = 1.0f, Color3f reflectance = Color3f{1.0f})
-    : center{p}, normal{n}, radius{r}, reflectance{reflectance}
-  {}
+  explicit Disk(Point3f p, 
+                Vector3f n, 
+                f32 radius, 
+                Material mat) : center{p}, normal{n}, radius{radius}, mat{mat} {}
 
   std::optional<HitRecord> intersect(const Ray& ray, f32 t_min, f32 t_max) const
   {
@@ -29,12 +31,12 @@ public:
     hit.t = t;
     hit.p = p;
     hit.n = (denom < 0.f) ? normal : -normal;
-    hit.reflectance = reflectance;
+    hit.mat = mat;
     return hit;
   }
 
   Point3f center{};
   Vector3f normal{};
   f32 radius;
-  Color3f reflectance{};
+  Material mat{};
 };

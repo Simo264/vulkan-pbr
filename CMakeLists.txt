@@ -29,6 +29,7 @@ target_sources(core_math_module PUBLIC FILE_SET CXX_MODULES FILES
   src/core/math/matrix.cppm
   src/core/math/transform.cppm
   src/core/math/utils.cppm
+  src/core/math/random.cppm
 )
 target_link_libraries(core_math_module PUBLIC core_types_module)
 
@@ -67,28 +68,44 @@ target_link_libraries(bvh_module PUBLIC
 )
 
 # -------------------------------
+#       Materials module
+# -------------------------------
+add_library(materials_module)
+target_sources(materials_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/materials/materials.cppm
+  src/materials/bsdf_sample.cppm
+  src/materials/diffuse.cppm
+)
+target_link_libraries(materials_module PUBLIC
+  core_module
+  camera_module
+)
+
+# -------------------------------
 #       Hit_record module
 # -------------------------------
 add_library(hitrecord_module)
 target_sources(hitrecord_module PUBLIC FILE_SET CXX_MODULES FILES src/hit_record.cppm)
-target_link_libraries(hitrecord_module PUBLIC core_module)
+target_link_libraries(hitrecord_module PUBLIC core_module materials_module)
 
 # -------------------------------
 #       Primitives module
 # -------------------------------
 add_library(primitives_module)
 target_sources(primitives_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/primitives/primitives.cppm
   src/primitives/plane.cppm
   src/primitives/disk.cppm
   src/primitives/sphere.cppm
   src/primitives/cube.cppm
-  src/primitives/triangle.cppm
-  src/primitives/triangle_mesh.cppm
+  #src/primitives/triangle.cppm
+  #src/primitives/triangle_mesh.cppm
 )
 target_link_libraries(primitives_module PUBLIC
   core_module
   camera_module
   hitrecord_module
+  materials_module
 )
 
 # -------------------------------
@@ -123,4 +140,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   scene_module
   primitives_module
   glTFLoader_module
+  materials_module
 )

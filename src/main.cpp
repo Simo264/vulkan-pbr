@@ -4,23 +4,11 @@ import core;
 import scene;
 import camera;
 import gltf_loader;
-
-import primitives.plane;
-import primitives.disk;
-import primitives.cube;
-import primitives.sphere;
-import primitives.triangle_mesh;
+import primitives;
+import materials;
 
 constexpr auto image_width = 640;
 constexpr auto image_height = 360;
-
-struct UniformRandomGenerator
-{
-  explicit UniformRandomGenerator(u32 seed) : engine{seed} {}
-  f32 uniform(f32 a = 0.f, f32 b = 1.f) { return std::uniform_real_distribution<f32>{a, b}(engine); }
-
-  std::mt19937 engine;
-};
 
 struct ShadingFrame
 {
@@ -40,60 +28,15 @@ struct ShadingFrame
   }
 
   // world to local
-  Vector3f to_local(const Vector3f& x) const noexcept { return { dot(x, s), dot(x, t), dot(x, n) }; }
-
+  Vector3f to_local(const Vector3f& x) const { return { dot(x, s), dot(x, t), dot(x, n) }; }
   // local to world
-  Vector3f to_world(const Vector3f& x) const noexcept { return x.x * s + x.y * t + x.z * n; }
+  Vector3f to_world(const Vector3f& x) const { return x.x * s + x.y * t + x.z * n; }
 };
 
-Vector3f sample_uniform_hemisphere(const Vector2f& u)
-{
-  // u.x, u.y in [0, 1)
-  f32 cos_theta = 1.f - u.x; // z
-  f32 sin_theta = std::sqrt(std::max(0.f, 1.f - cos_theta * cos_theta));
-  f32 phi       = 2.f * PI * u.y;
-  return Vector3f {
-    sin_theta * std::cos(phi),   // x
-    sin_theta * std::sin(phi),   // y
-    cos_theta                    // z
-  };
-}
-
-Vector3f sample_cosine_hemisphere(const Vector2f& u) noexcept
-{
-  f32 cos_theta = std::sqrt(u.x);
-  f32 sin_theta = std::sqrt(std::max(0.f, 1.f - u.x));
-  f32 phi       = 2.f * PI * u.y;
-  return Vector3f{
-    sin_theta * std::cos(phi),
-    sin_theta * std::sin(phi),
-    cos_theta
-  };
-}
-
-Color3f lambert_brdf(const Vector3f& wo, const Vector3f& wi, const Color3f& reflectance)
-{
-  // if both w_i and w_o lie in the same emisphere calculate: R/pi, otherwise return 0
-  if (wo.z <= 0.f || wi.z <= 0.f)
-    return Color3f{0.f};
-
-  return reflectance / PI;
-}
-
-f32 lambert_pdf(const Vector3f& wo, const Vector3f& wi)
-{
-  // if both w_i and w_o lie in the same emisphere calculate the PDF, otherwise return 0
-  if (wo.z <= 0.f || wi.z <= 0.f)
-    return 0.f;
-
-  // return 1.f / (2.f * PI);
-  return wi.z / PI; // (cos theta) / (pi)
-}
-
-Color3f ray_color(const Ray&              r,
-                  const Scene&            scene,
-                  UniformRandomGenerator& rng,
-                  i32                     depth)
+Color3f ray_color(const Ray&       r,
+                  const Scene&     scene,
+                  RandomGenerator& rng,
+                  i32              depth)
 {
   if (depth <= 0)
     return Color3f{0.f};
@@ -108,20 +51,20 @@ Color3f ray_color(const Ray&              r,
   ShadingFrame frame = ShadingFrame::from_normal(hit->n);
   Vector3f wo_local = frame.to_local(-r.d);
 
-  // sample w_i direction uniformly
-  Vector2f u{ rng.uniform(), rng.uniform() };
-  Vector3f wi_local = sample_cosine_hemisphere(u);
+  // samples from the material’s BSDF (dispatch on the variant)
+  Point2f u{ rng.uniform(), rng.uniform() };
+  BSDFSample bs = std::visit([&](const auto& mat) { return sample(mat, wo_local, u, rng); }, hit->mat);
 
-  // BRDF, PDF, coseno
-  Color3f f_r       = lambert_brdf(wo_local, wi_local, hit->reflectance);
-  f32     pdf       = lambert_pdf (wo_local, wi_local);
-  f32     cos_theta = wi_local.z;
+  if (!bs.valid || bs.pdf <= 0.f) return Color3f{0.f};
 
-  // Monte Carlo
-  Color3f weight = f_r * (cos_theta / pdf);
-
-  Vector3f wi_world = frame.to_world(wi_local);
+  // compute the reflected ray
+  Vector3f wi_world = frame.to_world(bs.wi);
   Ray reflected_ray{ hit->p + 1e-4f * hit->n, wi_world };
+
+  // weight Monte Carlo
+  f32 cos_theta = bs.wi.z;   // = dot(wi_local, n_local)
+  Color3f weight = bs.f * (cos_theta / bs.pdf);
+
   return weight * ray_color(reflected_ray, scene, rng, depth - 1);
 }
 
@@ -158,32 +101,36 @@ i32 main()
     image_width, image_height
   };
 
+  Diffuse mat_1{Color3f{0.9f}};
+  Diffuse mat_2{Color3f{0.7, 0.2f, 0.2f}};
+  Diffuse mat_3{Color3f{0.3f, 0.7f, 0.9f}};
+
+
   // ==============================
   // Set up scene
   // ==============================
 
   Scene scene;
-  scene.add(Disk{Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 5.f,Color3f{0.9f}});
-  scene.add(Sphere{Point3f{0.f, 0.f, 0.f}, 1.0f, Color3f{0.7, 0.2f, 0.2f}});
-  scene.add(Sphere{Point3f{-3.f, 0.f, 0.f}, 1.0f, Color3f{0.7, 0.2f, 0.2f}});
+  scene.add(Disk{Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 5.f, mat_1});
+  scene.add(Sphere{Point3f{0.f, 0.f, 0.f}, 1.0f, mat_2});
+  scene.add(Sphere{Point3f{-3.f, 0.f, 0.f}, 1.0f, mat_2});
 
-  auto cube = Cube{ Point3f{3.f, 0.f, 0.f}, Color3f{0.3f, 0.7f, 0.9f} };
+  auto cube = Cube{ Point3f{3.f, 0.f, 0.f}, mat_3};
   cube.set_transform(translate(Point3f{3.f, 0.f, 0.f}) * rotate_y(45.f) * scale(Vector3f{2.f, 2.f, 2.f}));
   scene.add(cube);
-
 
   // ==============================
   // Prepare for rendering
   // ==============================
 
-  constexpr auto samples_per_pixel  = 256;
+  constexpr auto samples_per_pixel  = 64;
   constexpr auto max_depth          = 5;
   constexpr auto num_threads        = 8;
   constexpr auto tile_size          = 32; // 32x32
   constexpr auto tiles_x = (image_width + tile_size - 1) / tile_size;
   constexpr auto tiles_y = (image_height + tile_size - 1) / tile_size;
   constexpr auto n_tiles = tiles_x * tiles_y;
-  auto render_tile = [&](i32 tile_idx, Camera& cam, UniformRandomGenerator& rng) {
+  auto render_tile = [&](i32 tile_idx, Camera& cam, RandomGenerator& rng) {
     auto tx = tile_idx % tiles_x;
     auto ty = tile_idx / tiles_x;
 
@@ -237,7 +184,7 @@ i32 main()
   for (auto t = 0; t < num_threads; ++t)
   {
     workers.emplace_back([&, t](std::stop_token st) {
-      UniformRandomGenerator rng{ 12345u + static_cast<u32>(t) * 1000u };
+      RandomGenerator rng{ 12345u + static_cast<u32>(t) * 1000u };
       while (!st.stop_requested())
       {
         auto tile_idx = next_tile.fetch_add(1, std::memory_order_relaxed);

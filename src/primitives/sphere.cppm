@@ -1,17 +1,17 @@
-export module primitives.sphere;
+export module primitives:sphere;
 
 import core;
 import camera;
 import hit_record;
+import materials;
 import std;
 
 export class Sphere
 {
 public:
-  explicit constexpr Sphere(Point3f   center = Point3f{0.f, 0.f, 0.f},
-                            f32       radius = 1.0f,
-                            Color3f   reflectance = Color3f{1.0f})
-  : center{center}, radius{radius}, reflectance{reflectance} {}
+  explicit Sphere(Point3f center,
+                  f32 radius,
+                  Material mat) : center{center}, radius{radius}, mat{mat} {}
 
   std::optional<HitRecord> intersect(const Ray& ray, f32 t_min, f32 t_max) const
   {
@@ -39,11 +39,11 @@ public:
     hit.t = t;
     hit.p = ray(t);
     hit.n = (hit.p - center) / radius;
-    hit.reflectance = reflectance;
+    hit.mat = mat;
     return hit;
   }
 
   Point3f center{};
   f32 radius{};
-  Color3f reflectance{};
+  Material mat{};
 };

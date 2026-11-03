@@ -1,6 +1,7 @@
 export module core.math;
 
 export import :utils;
+export import :random;
 export import :vector;
 export import :point;
 export import :matrix;

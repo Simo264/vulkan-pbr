@@ -1,14 +1,17 @@
-export module primitives.plane;
+export module primitives:plane;
 
 import core;
 import camera;
 import hit_record;
+import materials;
 import std;
 
 export class Plane
 {
 public:
-  explicit Plane(Point3f p, Vector3f n, Color3f reflectance = Color3f{1.0f}) : center{p}, normal{n}, reflectance{reflectance} {}
+  explicit Plane(Point3f p, 
+                 Vector3f n,
+                 Material mat) : center{p}, normal{n}, mat{mat} {}
 
   std::optional<HitRecord> intersect(const Ray& ray, f32 t_min, f32 t_max) const
   {
@@ -24,11 +27,11 @@ public:
     hit.t = t;
     hit.p = ray(t);
     hit.n = (denom < 0.f) ? normal : -normal;
-    hit.reflectance = reflectance;
+    hit.mat = mat;
     return hit;
   }
 
   Point3f center{};
   Vector3f normal{};
-  Color3f reflectance{};
+  Material mat{};
 };

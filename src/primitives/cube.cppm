@@ -1,15 +1,18 @@
-export module primitives.cube;
+export module primitives:cube;
 
 import core;
 import camera;
 import hit_record;
+import materials;
 import std;
 
 export class Cube
 {
 public:
-  explicit Cube(Point3f center, Color3f reflectance = Color3f{1.0f}) :
-    object_to_world{translate(center)}, world_to_object{inverse(object_to_world)}, reflectance{reflectance}
+  explicit Cube(Point3f center, Material mat) :
+    object_to_world{translate(center)},
+    world_to_object{inverse(object_to_world)},
+    mat{mat}
   {}
 
   void set_transform(const Transform& t)
@@ -71,11 +74,11 @@ public:
     hit.n = normalize(object_to_world(Normal3f{local_n.x,local_n.y,local_n.z}).to_vector());
     if (dot(hit.n, ray.d) > 0.f) hit.n = -hit.n;
 
-    hit.reflectance = reflectance;
+    hit.mat = mat;
     return hit;
   }
 
   Transform object_to_world;
   Transform world_to_object; // pre-calculated: inverse(object_to_world)
-  Color3f   reflectance;
+  Material  mat;
 };

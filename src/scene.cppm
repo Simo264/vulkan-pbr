@@ -3,15 +3,10 @@ export module scene;
 import core;
 import hit_record;
 import camera;
+import primitives;
 import std;
 
-import primitives.plane;
-import primitives.disk;
-import primitives.cube;
-import primitives.sphere;
-import primitives.triangle_mesh;
-
-export using SceneObject = std::variant<Plane, Disk, Sphere, Cube, TriangleMesh>;
+export using SceneObject = std::variant<Plane, Disk, Sphere, Cube>;
 
 export class Scene
 {
@@ -35,7 +30,7 @@ public:
           if (dot(n, ray.d) > 0.f)
             n = -n;
 
-          best = HitRecord{ hit->t, hit->p, n, o.reflectance };
+          best = HitRecord{ hit->t, hit->p, n, o.mat };
         }
       }, obj);
     }
