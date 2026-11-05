@@ -5,66 +5,46 @@ import :bsdf_sample;
 import core;
 import std;
 
-// Lambertian diffuse material
+// The Diffuse/Lambertian model means that the surface appears to have the same brightness from any viewing direction:
+// the outgoing radiance does not depend on w_o. The BRDF is constant:
+//
+//  - f_r(w_i, w_o) = R / pi
+//
 export struct Diffuse
 {
   Color3f albedo{0.9f};
 };
 
-// The hemispherical-directional reflectance
-export Color3f rho(const Diffuse& mat,
-                   [[maybe_unused]] const Vector3f& wo,
-                   [[maybe_unused]] std::span<const Point2f> u)
+// concentric_sample_disk: maps two uniform numbers from [0,1) onto the unit disc.
+// Uses the Shirley-Chiu concentric mapping (the one from the PBR book).
+Point2f concentric_sample_disk(f32 u1, f32 u2)
 {
-  return mat.albedo;   // closed form, no Monte Carlo needed
+  f32 ox = 2.f * u1 - 1.f;
+  f32 oy = 2.f * u2 - 1.f;
+
+  if (ox == 0.f && oy == 0.f) return Point2f{0.f, 0.f};
+
+  f32 r, theta;
+  if (std::abs(ox) > std::abs(oy))
+  {
+    r = ox;
+    theta = (PI_OVER_4) * (oy / ox);
+  }
+  else
+  {
+    r = oy;
+    theta = PI_OVER_2 - PI_OVER_4 * (ox / oy);
+  }
+  return Point2f{r * std::cos(theta), r * std::sin(theta)};
 }
 
-
-// The BRDF is constant: f_r(wi, wo) = R / pi
-export Color3f brdf(const Diffuse& mat,
-                    const Vector3f& wo,
-                    const Vector3f& wi)
+// generates a direction w_i using cosine-weighted hemisphere sampling
+export Vector3f sample_cosine_hemisphere(RandomGenerator& rng)
 {
-  if (wo.z <= 0.f || wi.z <= 0.f) return Color3f{0.f};
-  return mat.albedo / PI;
-}
+  f32 u1 = rng.uniform();
+  f32 u2 = rng.uniform();
 
-
-// the PDF by which you selected the sample direction: p(wi) = (cos theta_i) / (pi)
-export f32 pdf([[maybe_unused]] const Diffuse& mat,
-               const Vector3f& wo,
-               const Vector3f& wi)
-{
-  if (wo.z <= 0.f || wi.z <= 0.f) return 0.f;
-  return wi.z / PI;
-}
-
-// sample wi direction on the hemisphere
-export BSDFSample sample(const Diffuse& mat,
-                         const Vector3f& wo,
-                         const Point2f& u,
-                         [[maybe_unused]] RandomGenerator& rng)
-{
-  // It must be in the upper hemisphere
-  if (wo.z <= 0.f) return {};
-
-  // sample wi using cosine-weighted hemisphere sampling
-  auto cosine_weighted_hemisphere_sampling = [](const Point2f& u) -> Vector3f {
-    f32 r     = std::sqrt(u.x);
-    f32 phi   = 2.f * PI * u.y;
-    f32 x     = r * std::cos(phi);
-    f32 y     = r * std::sin(phi);
-    f32 z     = std::sqrt(std::max(0.f, 1.f - u.x));
-    return Vector3f{x, y, z};
-  };
-
-  Vector3f wi = cosine_weighted_hemisphere_sampling(u);
-  if (wi.z <= 0.f) return {};
-
-  return BSDFSample {
-    wi,
-    brdf(mat, wo, wi),
-    pdf(mat, wo, wi),
-    true
-  };
+  Point2f d = concentric_sample_disk(u1, u2);
+  f32 z = std::sqrt(std::max(0.f, 1.f - d.x * d.x - d.y * d.y));
+  return Vector3f{d.x, d.y, z};
 }

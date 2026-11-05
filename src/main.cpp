@@ -7,9 +7,6 @@ import gltf_loader;
 import primitives;
 import materials;
 
-constexpr auto image_width = 640;
-constexpr auto image_height = 360;
-
 struct ShadingFrame
 {
   Vector3f s, t, n;
@@ -38,38 +35,51 @@ Color3f ray_color(const Ray&       r,
                   RandomGenerator& rng,
                   i32              depth)
 {
-  if (depth <= 0)
-    return Color3f{0.f};
+  static auto sky_color = [](Vector3f d){ f32 t = 0.5f * (d.y + 1.f); return lerp(Color3f{1.f, 1.f, 1.f}, Color3f{0.5f, 0.7f, 1.f}, t); };
 
-  auto sky_color = [](Vector3f d){ f32 t = 0.5f * (d.y + 1.f); return lerp(Color3f{1.f, 1.f, 1.f}, Color3f{0.5f, 0.7f, 1.f}, t); };
+  if (depth <= 0) return Color3f{0.f};
 
   auto hit = scene.intersect(r);
   if (!hit)
     return sky_color(r.d);
 
-  // shading frame coordinate system (s,t,n)
+  // Build the shading frame: an orthonormal basis (s, t, n) centered at the hit point with n = surface normal.
+  // All BSDF math happens in this local space, where the normal is the +z axis.
   ShadingFrame frame = ShadingFrame::from_normal(hit->n);
   Vector3f wo_local = frame.to_local(-r.d);
 
-  // samples from the material’s BSDF (dispatch on the variant)
-  Point2f u{ rng.uniform(), rng.uniform() };
-  BSDFSample bs = std::visit([&](const auto& mat) { return sample(mat, wo_local, u, rng); }, hit->mat);
+  Vector3f wi_local{};
+  f32 cos_theta{0.f};
+  Color3f brdf{0.f};
+  f32 pdf{0.f};
 
-  if (!bs.valid || bs.pdf <= 0.f) return Color3f{0.f};
+  std::visit([&](const auto& mat) {
+    using T = std::decay_t<decltype(mat)>;
+    if constexpr (std::is_same_v<T, Diffuse>)
+    {
+      wi_local = sample_cosine_hemisphere(rng);
+      cos_theta = wi_local.z;
 
-  // compute the reflected ray
-  Vector3f wi_world = frame.to_world(bs.wi);
-  Ray reflected_ray{ hit->p + 1e-4f * hit->n, wi_world };
+      brdf = mat.albedo / PI;   // f_r(p,w_i,w_o) = R/pi
+      pdf  = cos_theta / PI;    // p(w)           = costheta / pi
+    }
+  }, hit->mat);
 
-  // weight Monte Carlo
-  f32 cos_theta = bs.wi.z;   // = dot(wi_local, n_local)
-  Color3f weight = bs.f * (cos_theta / bs.pdf);
+  if (cos_theta <= 0.f)
+    return Color3f{0.f};
 
-  return weight * ray_color(reflected_ray, scene, rng, depth - 1);
+  Vector3f wi_world = frame.to_world(wi_local);
+  Point3f p_offset = hit->p + hit->n * 1e-4f;
+  Ray incoming_ray{p_offset, wi_world};
+
+  Color3f Li = ray_color(incoming_ray, scene, rng, depth - 1);
+  // Monte Carlo Estimator
+  Color3f Lo = (brdf * cos_theta * Li) / pdf;
+  return Lo;
 }
 
 
-void save_image(Camera& cam, std::string_view filename)
+void save_image(Camera& cam, std::string_view filename, i32 image_width, i32 image_height)
 {
   std::ofstream out{filename.data(), std::ios::binary};
 
@@ -94,6 +104,9 @@ void save_image(Camera& cam, std::string_view filename)
 
 i32 main()
 {
+  constexpr auto image_width = 900;
+  constexpr auto image_height = 720;
+
   Camera camera{
     Point3f{0.f, 2.f, -6.f},   // position
     Point3f{0.f, 0.f, 5.f},    // look at
@@ -101,21 +114,24 @@ i32 main()
     image_width, image_height
   };
 
-  Diffuse mat_1{Color3f{0.9f}};
-  Diffuse mat_2{Color3f{0.7, 0.2f, 0.2f}};
-  Diffuse mat_3{Color3f{0.3f, 0.7f, 0.9f}};
-
-
   // ==============================
   // Set up scene
   // ==============================
 
   Scene scene;
-  scene.add(Disk{Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 5.f, mat_1});
-  scene.add(Sphere{Point3f{0.f, 0.f, 0.f}, 1.0f, mat_2});
-  scene.add(Sphere{Point3f{-3.f, 0.f, 0.f}, 1.0f, mat_2});
+  scene.add(Disk{
+    Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 5.f, Diffuse{Color3f{0.9f}}
+  });
+  scene.add(Sphere{
+    Point3f{0.f, 0.f, 0.f}, 1.0f, Diffuse{Color3f{0.7, 0.2f, 0.2f}}
+  });
+  scene.add(Sphere{
+    Point3f{-3.f, 0.f, 0.f}, 1.0f, Diffuse{Color3f{0.7, 0.2f, 0.2f}}
+  });
 
-  auto cube = Cube{ Point3f{3.f, 0.f, 0.f}, mat_3};
+  auto cube = Cube{
+    Point3f{3.f, 0.f, 0.f}, Diffuse{Color3f{0.3f, 0.7f, 0.9f}}
+  };
   cube.set_transform(translate(Point3f{3.f, 0.f, 0.f}) * rotate_y(45.f) * scale(Vector3f{2.f, 2.f, 2.f}));
   scene.add(cube);
 
@@ -123,7 +139,7 @@ i32 main()
   // Prepare for rendering
   // ==============================
 
-  constexpr auto samples_per_pixel  = 64;
+  constexpr auto samples_per_pixel  = 32;
   constexpr auto max_depth          = 5;
   constexpr auto num_threads        = 8;
   constexpr auto tile_size          = 32; // 32x32
@@ -204,6 +220,6 @@ i32 main()
   auto t_end = std::chrono::steady_clock::now();
   auto elapsed = std::chrono::duration<f64>(t_end - t_start).count();
   std::println("Rendered in {:.2f} s", elapsed);
-  save_image(camera, "output.ppm");
+  save_image(camera, "output.ppm", image_width, image_height);
   return 0;
 }

@@ -7,12 +7,12 @@ export struct HitRecord
 {
   f32      t{};      // ray intersection
   Point3f  p{};      // hit point
-  Vector3f n{};      // surface normal vector
-  Material mat{};    // the material property
+  Vector3f n{};      // point it towards the beam
+  Material mat{};
 };
 
-export struct TriangleHit
-{
-  f32 t{};
-  f32 b0{}, b1{}, b2{}; // barycentric coordinates
-};
+// export struct TriangleHit
+// {
+//   f32 t{};
+//   f32 b0{}, b1{}, b2{}; // barycentric coordinates
+// };

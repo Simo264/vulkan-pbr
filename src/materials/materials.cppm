@@ -2,9 +2,8 @@ export module materials;
 
 export import :bsdf_sample;
 export import :diffuse;
+export import :conductor;
 
 import std;
 
-// export struct Conductor{};
-// export struct Dielectric{};
-export using Material = std::variant<Diffuse /* Conductor, Lambertian */>;
+export using Material = std::variant<Diffuse>;
