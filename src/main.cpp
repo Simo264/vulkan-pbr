@@ -48,33 +48,45 @@ Color3f ray_color(const Ray&       r,
   ShadingFrame frame = ShadingFrame::from_normal(hit->n);
   Vector3f wo_local = frame.to_local(-r.d);
 
-  Vector3f wi_local{};
-  f32 cos_theta{0.f};
-  Color3f brdf{0.f};
-  f32 pdf{0.f};
+  Vector3f wi_local = Vector3f{0.f};
+  Color3f brdf      = Color3f{0.f};
+  f32 pdf           = 0.f;
+  f32 cos_theta_o   = wo_local.z; // cosine between surface normal and the outward beam
+  f32 cos_theta_i   = 0.f;        // cosine between surface normal and the incident beam
 
   std::visit([&](const auto& mat) {
     using T = std::decay_t<decltype(mat)>;
     if constexpr (std::is_same_v<T, Diffuse>)
     {
-      wi_local = sample_cosine_hemisphere(rng);
-      cos_theta = wi_local.z;
+      wi_local  = sample_cosine_hemisphere(rng);
+      cos_theta_i = wi_local.z;
+      if (cos_theta_i <= 0.f) return; // safety
 
-      brdf = mat.albedo / PI;   // f_r(p,w_i,w_o) = R/pi
-      pdf  = cos_theta / PI;    // p(w)           = costheta / pi
+      brdf      = mat.albedo / PI;   // f_r(p,w_i,w_o) = R/pi
+      pdf       = cos_theta_i / PI;  // p(w)           = costheta / pi
+    }
+    else if constexpr (std::is_same_v<T, Conductor>)
+    {
+      wi_local    = Vector3f{-wo_local.x, -wo_local.y, wo_local.z}; // specular direction
+      cos_theta_i = wi_local.z;
+      if (cos_theta_i <= 0.f) return; // safety
+
+      Color3f fr  = fresnel_conductor(cos_theta_i, mat.eta, mat.k);
+      brdf        = fr / cos_theta_i;
+      pdf         = 1.0f;
     }
   }, hit->mat);
 
-  if (cos_theta <= 0.f)
-    return Color3f{0.f};
+  if (pdf <= 0.f || cos_theta_i <= 0.f) return Color3f{0.f}; // safety
 
   Vector3f wi_world = frame.to_world(wi_local);
   Point3f p_offset = hit->p + hit->n * 1e-4f;
   Ray incoming_ray{p_offset, wi_world};
 
   Color3f Li = ray_color(incoming_ray, scene, rng, depth - 1);
-  // Monte Carlo Estimator
-  Color3f Lo = (brdf * cos_theta * Li) / pdf;
+  // Monte Carlo Estimator. General estimator with any PDF formula:
+  // F_n = 1/n sum_i^n f(X_i)/p(X_i)
+  Color3f Lo = (brdf * cos_theta_i * Li) / pdf;
   return Lo;
 }
 
@@ -120,17 +132,21 @@ i32 main()
 
   Scene scene;
   scene.add(Disk{
-    Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 5.f, Diffuse{Color3f{0.9f}}
+    Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 5.f,
+    Diffuse{.albedo = Color3f{0.9f}}
   });
   scene.add(Sphere{
-    Point3f{0.f, 0.f, 0.f}, 1.0f, Diffuse{Color3f{0.7, 0.2f, 0.2f}}
+    Point3f{0.f, 0.f, 0.f}, 1.0f,
+    Conductor{.eta = Color3f{0.143f, 0.375f, 1.44f}, .k = Color3f{3.98f,  2.38f,  1.60f}}
   });
   scene.add(Sphere{
-    Point3f{-3.f, 0.f, 0.f}, 1.0f, Diffuse{Color3f{0.7, 0.2f, 0.2f}}
+    Point3f{-3.f, 0.f, 0.f}, 1.0f,
+    Conductor{.eta = Color3f{1.17}, .k = Color3f{6.57}}
   });
 
   auto cube = Cube{
-    Point3f{3.f, 0.f, 0.f}, Diffuse{Color3f{0.3f, 0.7f, 0.9f}}
+    Point3f{3.f, 0.f, 0.f},
+    Diffuse{.albedo = Color3f{0.3f, 0.7f, 0.9f}}
   };
   cube.set_transform(translate(Point3f{3.f, 0.f, 0.f}) * rotate_y(45.f) * scale(Vector3f{2.f, 2.f, 2.f}));
   scene.add(cube);
@@ -139,7 +155,7 @@ i32 main()
   // Prepare for rendering
   // ==============================
 
-  constexpr auto samples_per_pixel  = 32;
+  constexpr auto samples_per_pixel  = 64;
   constexpr auto max_depth          = 5;
   constexpr auto num_threads        = 8;
   constexpr auto tile_size          = 32; // 32x32

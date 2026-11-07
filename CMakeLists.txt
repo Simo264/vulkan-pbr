@@ -73,7 +73,6 @@ target_link_libraries(bvh_module PUBLIC
 add_library(materials_module)
 target_sources(materials_module PUBLIC FILE_SET CXX_MODULES FILES
   src/materials/materials.cppm
-  src/materials/bsdf_sample.cppm
   src/materials/diffuse.cppm
   src/materials/conductor.cppm
   #src/materials/dielectric.cppm
