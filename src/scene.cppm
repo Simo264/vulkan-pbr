@@ -25,12 +25,7 @@ public:
         if (auto hit = o.intersect(ray, t_min, closest))
         {
           closest = hit->t;
-
-          Vector3f n = hit->n;
-          if (dot(n, ray.d) > 0.f)
-            n = -n;
-
-          best = HitRecord{ hit->t, hit->p, n, o.mat };
+          best = HitRecord{ hit->t, hit->p, hit->n, hit->mat };
         }
       }, obj);
     }

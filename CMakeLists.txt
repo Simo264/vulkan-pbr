@@ -75,7 +75,7 @@ target_sources(materials_module PUBLIC FILE_SET CXX_MODULES FILES
   src/materials/materials.cppm
   src/materials/diffuse.cppm
   src/materials/conductor.cppm
-  #src/materials/dielectric.cppm
+  src/materials/dielectric.cppm
 )
 target_link_libraries(materials_module PUBLIC
   core_module

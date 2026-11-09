@@ -3,25 +3,13 @@ export module materials:conductor;
 import core;
 import std;
 
-
-
-
-// For conductors such as metals, the IOR becomes a complex number:
-//  tilde(eta) = eta - ik
-//
-// where
-// - eta: is the usual refractive part, controlling phase velocity and refraction
-// - k:   is the absorption coefficient, controlling how rapidly light decays inside the material
-//
-// The complex IOR still strongly affects the reflected light, which is why gold, silver, copper, and aluminum
-// have different colors and reflection behavior.
 export struct Conductor
 {
   Color3f eta{ 1.f, 1.f, 1.f }; // material's IOR per channel (r g b)
   Color3f k  { 0.f, 0.f, 0.f }; // absorption coefficient per channel (r g b)
 };
 
-export f32 fresnel_conductor_channel(f32 cos_i, f32 eta, f32 k)
+f32 fresnel_conductor_channel(f32 cos_i, f32 eta, f32 k)
 {
   using Complex = std::complex<f32>;
   cos_i = std::clamp(cos_i, 0.f, 1.f);
@@ -52,7 +40,7 @@ export f32 fresnel_conductor_channel(f32 cos_i, f32 eta, f32 k)
   return 0.5f * (std::norm(r_parallel) + std::norm(r_perp));
 }
 
-export Color3f fresnel_conductor(f32 cos_i, const Color3f& eta, const Color3f& k)
+export Color3f complex_fresnel_conductor(f32 cos_i, const Color3f& eta, const Color3f& k)
 {
     return Color3f{
         fresnel_conductor_channel(cos_i, eta.r, k.r),

@@ -7,6 +7,16 @@ import gltf_loader;
 import primitives;
 import materials;
 
+constexpr auto image_width        = 900;
+constexpr auto image_height       = 720;
+constexpr auto samples_per_pixel  = 128;
+constexpr auto max_depth          = 30;
+constexpr auto num_threads        = 8;
+constexpr auto tile_size          = 32; // 32x32
+constexpr auto tiles_x = (image_width + tile_size - 1) / tile_size;
+constexpr auto tiles_y = (image_height + tile_size - 1) / tile_size;
+constexpr auto n_tiles = tiles_x * tiles_y;
+
 struct ShadingFrame
 {
   Vector3f s, t, n;
@@ -30,7 +40,7 @@ struct ShadingFrame
   Vector3f to_world(const Vector3f& x) const { return x.x * s + x.y * t + x.z * n; }
 };
 
-Color3f ray_color(const Ray&       r,
+Color3f compute_shading(const Ray& r,
                   const Scene&     scene,
                   RandomGenerator& rng,
                   i32              depth)
@@ -51,7 +61,6 @@ Color3f ray_color(const Ray&       r,
   Vector3f wi_local = Vector3f{0.f};
   Color3f brdf      = Color3f{0.f};
   f32 pdf           = 0.f;
-  f32 cos_theta_o   = wo_local.z; // cosine between surface normal and the outward beam
   f32 cos_theta_i   = 0.f;        // cosine between surface normal and the incident beam
 
   std::visit([&](const auto& mat) {
@@ -71,25 +80,85 @@ Color3f ray_color(const Ray&       r,
       cos_theta_i = wi_local.z;
       if (cos_theta_i <= 0.f) return; // safety
 
-      Color3f fr  = fresnel_conductor(cos_theta_i, mat.eta, mat.k);
+      Color3f fr  = complex_fresnel_conductor(cos_theta_i, mat.eta, mat.k);
       brdf        = fr / cos_theta_i;
       pdf         = 1.0f;
     }
+    else if constexpr (std::is_same_v<T, Dielectric>)
+    {
+      constexpr auto IOR_air = 1.0f;
+
+      // the beam comes from outside? wo_local.z > 0
+      // the beam comes from inside? wo_local.z < 0
+      bool entering = wo_local.z > 0.f;
+      f32 eta_i = entering ? IOR_air : mat.eta; // IOR of the reflected medium.
+      f32 eta_t = entering ? mat.eta : IOR_air; // IOR of the transmitted medium.
+      f32 eta_rel = eta_t / eta_i;
+      f32 cos_i = std::abs(wo_local.z);
+
+      f32 Fr = real_fresnel_dielectric(cos_i, eta_t, eta_i);
+      f32 T  = 1.f - Fr;
+
+      // Fresnel-based sampling
+      bool do_reflect = (rng.uniform() < Fr) || (Fr >= 1.f);
+      if (do_reflect) // handle reflection
+      {
+        wi_local    = Vector3f{-wo_local.x, -wo_local.y, wo_local.z}; // specular direction
+        cos_theta_i = std::abs(wi_local.z);
+        brdf = Color3f{Fr / cos_theta_i};
+        pdf  = Fr; // = 1 in case of total internal reflection
+      }
+      else // handle refraction
+      {
+        auto refr = refract(wo_local, eta_rel);
+        if (!refr) return; // Total internal reflection
+
+        wi_local    = *refr;
+        cos_theta_i = std::abs(wi_local.z);
+        f32 eta_ratio_sq = (eta_i / eta_t) * (eta_i / eta_t);
+        brdf = Color3f{(T * eta_ratio_sq) / cos_theta_i};
+        pdf  = T;
+      }
+    }
+
   }, hit->mat);
 
   if (pdf <= 0.f || cos_theta_i <= 0.f) return Color3f{0.f}; // safety
 
   Vector3f wi_world = frame.to_world(wi_local);
-  Point3f p_offset = hit->p + hit->n * 1e-4f;
+  Point3f  p_offset = hit->p + wi_world * 1e-4f;
   Ray incoming_ray{p_offset, wi_world};
 
-  Color3f Li = ray_color(incoming_ray, scene, rng, depth - 1);
+  Color3f Li = compute_shading(incoming_ray, scene, rng, depth - 1);
   // Monte Carlo Estimator. General estimator with any PDF formula:
   // F_n = 1/n sum_i^n f(X_i)/p(X_i)
   Color3f Lo = (brdf * cos_theta_i * Li) / pdf;
   return Lo;
 }
 
+void render_tile(i32 tile_idx, const Scene& scene, Camera& cam, RandomGenerator& rng)
+{
+  auto tx = tile_idx % tiles_x;
+  auto ty = tile_idx / tiles_x;
+  auto x0 = tx * tile_size;
+  auto y0 = ty * tile_size;
+  auto x1 = std::min(x0 + tile_size, image_width); // clamp for last tile
+  auto y1 = std::min(y0 + tile_size, image_height);
+  for (auto j = y0; j < y1; ++j)
+  {
+    for (auto i = x0; i < x1; ++i)
+    {
+      Color3f c{0.f};
+      for (auto s = 0; s < samples_per_pixel; ++s)
+      {
+        Ray r = cam.generate_ray(static_cast<f32>(i), static_cast<f32>(j), rng.uniform(), rng.uniform());
+        c += compute_shading(r, scene, rng, max_depth);
+      }
+      c = c / static_cast<f32>(samples_per_pixel);
+      cam.film.at(i, j) = c;
+    }
+  }
+}
 
 void save_image(Camera& cam, std::string_view filename, i32 image_width, i32 image_height)
 {
@@ -116,9 +185,6 @@ void save_image(Camera& cam, std::string_view filename, i32 image_width, i32 ima
 
 i32 main()
 {
-  constexpr auto image_width = 900;
-  constexpr auto image_height = 720;
-
   Camera camera{
     Point3f{0.f, 2.f, -6.f},   // position
     Point3f{0.f, 0.f, 5.f},    // look at
@@ -136,17 +202,16 @@ i32 main()
     Diffuse{.albedo = Color3f{0.9f}}
   });
   scene.add(Sphere{
-    Point3f{0.f, 0.f, 0.f}, 1.0f,
-    Conductor{.eta = Color3f{0.143f, 0.375f, 1.44f}, .k = Color3f{3.98f,  2.38f,  1.60f}}
+    Point3f{-3.f, 0.f, 0.f}, 1.0f,
+    Diffuse{.albedo = Color3f{0.8f, 0.2f, 0.2f}}
   });
   scene.add(Sphere{
-    Point3f{-3.f, 0.f, 0.f}, 1.0f,
-    Conductor{.eta = Color3f{1.17}, .k = Color3f{6.57}}
+    Point3f{0.f, 0.f, 0.f}, 1.0f,
+    Dielectric{.eta = 1.52f} // standard glass
   });
-
   auto cube = Cube{
     Point3f{3.f, 0.f, 0.f},
-    Diffuse{.albedo = Color3f{0.3f, 0.7f, 0.9f}}
+    Conductor{.eta = Color3f{0.14f, 0.15f, 0.18f}, .k = Color3f{3.19f, 3.30f, 3.50f}} // silver metal
   };
   cube.set_transform(translate(Point3f{3.f, 0.f, 0.f}) * rotate_y(45.f) * scale(Vector3f{2.f, 2.f, 2.f}));
   scene.add(cube);
@@ -155,40 +220,7 @@ i32 main()
   // Prepare for rendering
   // ==============================
 
-  constexpr auto samples_per_pixel  = 64;
-  constexpr auto max_depth          = 5;
-  constexpr auto num_threads        = 8;
-  constexpr auto tile_size          = 32; // 32x32
-  constexpr auto tiles_x = (image_width + tile_size - 1) / tile_size;
-  constexpr auto tiles_y = (image_height + tile_size - 1) / tile_size;
-  constexpr auto n_tiles = tiles_x * tiles_y;
-  auto render_tile = [&](i32 tile_idx, Camera& cam, RandomGenerator& rng) {
-    auto tx = tile_idx % tiles_x;
-    auto ty = tile_idx / tiles_x;
-
-    auto x0 = tx * tile_size;
-    auto y0 = ty * tile_size;
-    auto x1 = std::min(x0 + tile_size, image_width); // clamp for last tile
-    auto y1 = std::min(y0 + tile_size, image_height);
-
-    for (auto j = y0; j < y1; ++j)
-    {
-      for (auto i = x0; i < x1; ++i)
-      {
-        Color3f c{0.f};
-        for (auto s = 0; s < samples_per_pixel; ++s)
-        {
-          Ray r = cam.generate_ray(static_cast<f32>(i), static_cast<f32>(j), rng.uniform(), rng.uniform());
-          c += ray_color(r, scene, rng, max_depth);
-        }
-        c = c / static_cast<f32>(samples_per_pixel);
-        cam.film.at(i, j) = c;
-      }
-    }
-  };
-
   auto t_start = std::chrono::steady_clock::now();
-
   std::atomic<i32> tiles_done{0};
   std::atomic<i32> next_tile{0};
   std::atomic<i32> last_pct{-1};
@@ -223,7 +255,7 @@ i32 main()
         if (tile_idx >= n_tiles)
           break;
 
-        render_tile(tile_idx, camera, rng);
+        render_tile(tile_idx, scene, camera, rng);
         tiles_done.fetch_add(1, std::memory_order_relaxed);
         report_progress();
       }
