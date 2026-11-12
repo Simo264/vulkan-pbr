@@ -57,30 +57,45 @@ target_sources(camera_module PUBLIC FILE_SET CXX_MODULES FILES
 )
 target_link_libraries(camera_module PUBLIC core_module)
 
+
 # -------------------------------
 #       BVH module
 # -------------------------------
-add_library(bvh_module)
-target_sources(bvh_module PUBLIC FILE_SET CXX_MODULES FILES src/bvh/bvh.cppm src/bvh/bbox.cppm)
-target_link_libraries(bvh_module PUBLIC
+# add_library(bvh_module)
+# target_sources(bvh_module PUBLIC FILE_SET CXX_MODULES FILES src/bvh/bvh.cppm src/bvh/bbox.cppm)
+# target_link_libraries(bvh_module PUBLIC
+#   core_module
+#   camera_module
+# )
+
+# -------------------------------
+#       Sampling module
+# -------------------------------
+add_library(sampling_module)
+target_sources(sampling_module PUBLIC FILE_SET CXX_MODULES FILES src/sampling.cppm)
+target_link_libraries(sampling_module PUBLIC core_module)
+
+# -------------------------------
+#       BSDF module
+# -------------------------------
+add_library(bsdf_module)
+target_sources(bsdf_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/bsdf/bsdf.cppm
+  src/bsdf/geometry.cppm
+  src/bsdf/fresnel.cppm
+  src/bsdf/trowbridge_reitz.cppm
+)
+target_link_libraries(bsdf_module PUBLIC
   core_module
-  camera_module
+  sampling_module
 )
 
 # -------------------------------
 #       Materials module
 # -------------------------------
 add_library(materials_module)
-target_sources(materials_module PUBLIC FILE_SET CXX_MODULES FILES
-  src/materials/materials.cppm
-  src/materials/diffuse.cppm
-  src/materials/conductor.cppm
-  src/materials/dielectric.cppm
-)
-target_link_libraries(materials_module PUBLIC
-  core_module
-  camera_module
-)
+target_sources(materials_module PUBLIC FILE_SET CXX_MODULES FILES src/materials.cppm)
+target_link_libraries(materials_module PUBLIC core_module)
 
 # -------------------------------
 #       Hit_record module
@@ -127,9 +142,9 @@ target_link_libraries(scene_module PUBLIC
 # -------------------------------
 #       glTF_loader module
 # -------------------------------
-add_library(glTFLoader_module)
-target_sources(glTFLoader_module PUBLIC FILE_SET CXX_MODULES FILES src/gltf_loader/gltf_loader.cppm)
-target_link_libraries(glTFLoader_module PUBLIC core_module scene_module)
+# add_library(glTFLoader_module)
+# target_sources(glTFLoader_module PUBLIC FILE_SET CXX_MODULES FILES src/gltf_loader/gltf_loader.cppm)
+# target_link_libraries(glTFLoader_module PUBLIC core_module scene_module)
 
 # -------------------------------
 #       executable file
@@ -140,6 +155,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   camera_module
   scene_module
   primitives_module
-  glTFLoader_module
+  bsdf_module
+  sampling_module
   materials_module
 )

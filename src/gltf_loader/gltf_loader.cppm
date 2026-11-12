@@ -1,15 +1,15 @@
-module;
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "tiny_gltf.h"
-
-export module gltf_loader;
-
-import core;
-import primitives;
-import std;
-
+// module;
+// #define TINYGLTF_IMPLEMENTATION
+// #define STB_IMAGE_IMPLEMENTATION
+// #define STB_IMAGE_WRITE_IMPLEMENTATION
+// #include "tiny_gltf.h"
+//
+// export module gltf_loader;
+//
+// import core;
+// import primitives;
+// import std;
+//
 
 // template <typename T>
 // std::vector<T> read_accessor(const tinygltf::Model& model, i32 accessor_index)

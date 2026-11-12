@@ -10,19 +10,19 @@ struct SquareMatrix
 {
   T m[N][N];
 
-  constexpr       T& operator()(i32 i, i32 j) noexcept { return m[i][j]; }
-  constexpr const T& operator()(i32 i, i32 j) const noexcept { return m[i][j]; }
-  constexpr       T* operator[](i32 i) noexcept { return m[i]; }
-  constexpr const T* operator[](i32 i) const noexcept { return m[i]; }
+  constexpr       T& operator()(i32 i, i32 j) { return m[i][j]; }
+  constexpr const T& operator()(i32 i, i32 j) const { return m[i][j]; }
+  constexpr       T* operator[](i32 i) { return m[i]; }
+  constexpr const T* operator[](i32 i) const { return m[i]; }
 
-  static constexpr SquareMatrix zero() noexcept { return SquareMatrix{}; }
-  static constexpr SquareMatrix identity() noexcept { SquareMatrix r{}; for (i32 i = 0; i < N; ++i) r.m[i][i] = T{1}; return r; }
+  static constexpr SquareMatrix zero() { return SquareMatrix{}; }
+  static constexpr SquareMatrix identity() { SquareMatrix r{}; for (i32 i = 0; i < N; ++i) r.m[i][i] = T{1}; return r; }
 
-  constexpr SquareMatrix& operator+=(const SquareMatrix& rhs) noexcept { for (i32 i = 0; i < N; ++i) { for (i32 j = 0; j < N; ++j) m[i][j] += rhs.m[i][j]; } return *this; }
-  constexpr SquareMatrix& operator-=(const SquareMatrix& rhs) noexcept { for (i32 i = 0; i < N; ++i) { for (i32 j = 0; j < N; ++j) m[i][j] -= rhs.m[i][j]; } return *this; }
-  constexpr SquareMatrix& operator*=(T s) noexcept { for (i32 i = 0; i < N; ++i) { for (i32 j = 0; j < N; ++j) m[i][j] *= s; } return *this; }
-  constexpr SquareMatrix& operator/=(T s) noexcept { for (i32 i = 0; i < N; ++i) { for (i32 j = 0; j < N; ++j) m[i][j] /= s; } return *this; }
-  constexpr SquareMatrix& operator*=(const SquareMatrix& rhs) noexcept
+  constexpr SquareMatrix& operator+=(const SquareMatrix& rhs) { for (i32 i = 0; i < N; ++i) { for (i32 j = 0; j < N; ++j) m[i][j] += rhs.m[i][j]; } return *this; }
+  constexpr SquareMatrix& operator-=(const SquareMatrix& rhs) { for (i32 i = 0; i < N; ++i) { for (i32 j = 0; j < N; ++j) m[i][j] -= rhs.m[i][j]; } return *this; }
+  constexpr SquareMatrix& operator*=(T s) { for (i32 i = 0; i < N; ++i) { for (i32 j = 0; j < N; ++j) m[i][j] *= s; } return *this; }
+  constexpr SquareMatrix& operator/=(T s) { for (i32 i = 0; i < N; ++i) { for (i32 j = 0; j < N; ++j) m[i][j] /= s; } return *this; }
+  constexpr SquareMatrix& operator*=(const SquareMatrix& rhs)
   {
     SquareMatrix tmp{};
     for (i32 i = 0; i < N; ++i)
@@ -41,31 +41,31 @@ struct SquareMatrix
 
 export {
   template <i32 N, Arithmetic T>
-  constexpr SquareMatrix<N, T> operator+(SquareMatrix<N, T> a, const SquareMatrix<N, T>& b) noexcept { a += b; return a; }
+  constexpr SquareMatrix<N, T> operator+(SquareMatrix<N, T> a, const SquareMatrix<N, T>& b) { a += b; return a; }
   template <i32 N, Arithmetic T>
-  constexpr SquareMatrix<N, T> operator-(SquareMatrix<N, T> a, const SquareMatrix<N, T>& b) noexcept { a -= b; return a; }
+  constexpr SquareMatrix<N, T> operator-(SquareMatrix<N, T> a, const SquareMatrix<N, T>& b) { a -= b; return a; }
   template <i32 N, Arithmetic T>
-  constexpr SquareMatrix<N, T> operator*(SquareMatrix<N, T> a, T s) noexcept { a *= s; return a; }
+  constexpr SquareMatrix<N, T> operator*(SquareMatrix<N, T> a, T s) { a *= s; return a; }
   template <i32 N, Arithmetic T>
-  constexpr SquareMatrix<N, T> operator*(T s, SquareMatrix<N, T> a) noexcept { a *= s; return a; }
+  constexpr SquareMatrix<N, T> operator*(T s, SquareMatrix<N, T> a) { a *= s; return a; }
   template <i32 N, Arithmetic T>
-  constexpr SquareMatrix<N, T> operator/(SquareMatrix<N, T> a, T s) noexcept { a /= s; return a; }
+  constexpr SquareMatrix<N, T> operator/(SquareMatrix<N, T> a, T s) { a /= s; return a; }
 
   template <i32 N, Arithmetic T>
-  constexpr SquareMatrix<N, T> operator*(const SquareMatrix<N, T>& a, const SquareMatrix<N, T>& b) noexcept { SquareMatrix<N, T> r{}; for (i32 i = 0; i < N; ++i) { for (i32 k = 0; k < N; ++k) { const T aik = a.m[i][k]; for (i32 j = 0; j < N; ++j) r.m[i][j] += aik * b.m[k][j]; } } return r; }
+  constexpr SquareMatrix<N, T> operator*(const SquareMatrix<N, T>& a, const SquareMatrix<N, T>& b) { SquareMatrix<N, T> r{}; for (i32 i = 0; i < N; ++i) { for (i32 k = 0; k < N; ++k) { const T aik = a.m[i][k]; for (i32 j = 0; j < N; ++j) r.m[i][j] += aik * b.m[k][j]; } } return r; }
   template <i32 N, Arithmetic T>
-  constexpr bool operator==(const SquareMatrix<N, T>& a, const SquareMatrix<N, T>& b) noexcept { for (i32 i = 0; i < N; ++i) {for (i32 j = 0; j < N; ++j) if (a.m[i][j] != b.m[i][j]) return false;} return true; }
+  constexpr bool operator==(const SquareMatrix<N, T>& a, const SquareMatrix<N, T>& b) { for (i32 i = 0; i < N; ++i) {for (i32 j = 0; j < N; ++j) if (a.m[i][j] != b.m[i][j]) return false;} return true; }
   template <i32 N, Arithmetic T>
-  constexpr bool operator!=(const SquareMatrix<N, T>& a, const SquareMatrix<N, T>& b) noexcept { return !(a == b); }
+  constexpr bool operator!=(const SquareMatrix<N, T>& a, const SquareMatrix<N, T>& b) { return !(a == b); }
 
   template <i32 N, Arithmetic T>
-  constexpr SquareMatrix<N, T> zero() noexcept { return SquareMatrix<N, T>::zero(); }
+  constexpr SquareMatrix<N, T> zero() { return SquareMatrix<N, T>::zero(); }
   template <i32 N, Arithmetic T>
-  constexpr SquareMatrix<N, T> identity() noexcept { return SquareMatrix<N, T>::identity(); }
+  constexpr SquareMatrix<N, T> identity() { return SquareMatrix<N, T>::identity(); }
   template <i32 N, Arithmetic T>
-  constexpr SquareMatrix<N, T> transpose(const SquareMatrix<N, T>& a) noexcept { SquareMatrix<N, T> r{};for (i32 i = 0; i < N; ++i){ for (i32 j = 0; j < N; ++j) r.m[j][i] = a.m[i][j]; } return r; }
+  constexpr SquareMatrix<N, T> transpose(const SquareMatrix<N, T>& a) { SquareMatrix<N, T> r{};for (i32 i = 0; i < N; ++i){ for (i32 j = 0; j < N; ++j) r.m[j][i] = a.m[i][j]; } return r; }
   template <i32 N, Arithmetic T>
-  constexpr T determinant(const SquareMatrix<N, T>& a) noexcept
+  constexpr T determinant(const SquareMatrix<N, T>& a)
   {
     if constexpr (N == 2)
     {
@@ -98,7 +98,7 @@ export {
     }
   }
   template <i32 N, Arithmetic T>
-  constexpr SquareMatrix<N, T> inverse(const SquareMatrix<N, T>& a) noexcept
+  constexpr SquareMatrix<N, T> inverse(const SquareMatrix<N, T>& a)
   {
     if constexpr (N == 2)
     {
