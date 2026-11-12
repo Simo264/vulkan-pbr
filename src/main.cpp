@@ -10,14 +10,13 @@ import materials;
 
 constexpr auto image_width        = 900;
 constexpr auto image_height       = 720;
-constexpr auto samples_per_pixel  = 512;
+constexpr auto samples_per_pixel  = 64;
 constexpr auto max_depth          = 50;
 constexpr auto num_threads        = 8;
 constexpr auto tile_size          = 32; // 32x32
 constexpr auto tiles_x = (image_width + tile_size - 1) / tile_size;
 constexpr auto tiles_y = (image_height + tile_size - 1) / tile_size;
 constexpr auto n_tiles = tiles_x * tiles_y;
-
 
 Color3f compute_shading(const Ray&       r,
                         const Scene&     scene,
@@ -235,8 +234,6 @@ i32 main()
     }
   });
 
-  // dielectrics
-
   scene.add(Sphere{
     Point3f{-3.f, 0.f, 4.f}, 1.0f,
     Dielectric{
@@ -245,24 +242,20 @@ i32 main()
   });
   scene.add(Sphere{
     Point3f{0.f, 0.f, 4.f}, 1.0f,
-    Dielectric{
-      .eta = 1.77f // spahhire
+    Diffuse{
+      .albedo = Color3f{0.85f}
     }
   });
-  scene.add(Sphere{
-    Point3f{3.f, 0.f, 4.f}, 1.0f,
-    Dielectric{
-      .eta = 2.417f // Diamond
+  auto cube = Cube{
+    Point3f{3.f, 0.f, 4.f},
+    Conductor{
+      .eta = Color3f{2.91, 2.95, 2.88},
+      .k = Color3f{3.07, 2.88, 2.74},
+      .alpha_x = 0.02f, .alpha_y = 0.02f,
     }
-  });
-
-
-  // auto cube = Cube{
-  //   Point3f{3.f, 0.f, 0.f},
-  //   Conductor{.eta = Color3f{0.14f, 0.15f, 0.18f}, .k = Color3f{3.19f, 3.30f, 3.50f}} // silver metal
-  // };
-  // cube.set_transform(translate(Point3f{3.f, 0.f, 0.f}) * rotate_y(45.f) * scale(Vector3f{2.f, 2.f, 2.f}));
-  // scene.add(cube);
+  };
+  cube.set_transform(translate(Point3f{3.f, 0.f, 4.f}) * rotate_y(45.f) * scale(Vector3f{2.f, 2.f, 2.f}));
+  scene.add(cube);
 
   // ==============================
   // Prepare for rendering
