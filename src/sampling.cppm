@@ -3,9 +3,9 @@ export module sampling;
 import core;
 import std;
 
-// Shirley–Chiu concentric mapping. Produces a point uniformly distributed by area on the unit disk. 
-// Required by sample_cosine_hemisphere, where the geometric interpretation of the mapping 
-// (radial strips of the unit square mapped to radial strips of the disk) is what makes the cosine-weighted 
+// Shirley–Chiu concentric mapping. Produces a point uniformly distributed by area on the unit disk.
+// Required by sample_cosine_hemisphere, where the geometric interpretation of the mapping
+// (radial strips of the unit square mapped to radial strips of the disk) is what makes the cosine-weighted
 // distribution emerge naturally.
 export Point2f sample_uniform_disk_concentric(RandomGenerator& rng)
 {
@@ -43,8 +43,8 @@ export Vector3f sample_cosine_hemisphere(RandomGenerator& rng)
   return Vector3f{d.x, d.y, z};
 }
 
-// Uniform-in-area point on the unit disk, with polar parametrization. 
-// Required by the Heitz 2018 VNDF sampler in TrowbridgeReitzDistribution::sample_wm, 
+// Uniform-in-area point on the unit disk, with polar parametrization.
+// Required by the Heitz 2018 VNDF sampler in TrowbridgeReitzDistribution::sample_wm,
 // where the algorithm depends specifically on this parametrization (not the concentric one).
 export Point2f sample_uniform_disk_polar(RandomGenerator& rng)
 {

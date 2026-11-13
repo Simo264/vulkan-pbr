@@ -46,15 +46,6 @@ export Vector3f reflect(Vector3f wo, Vector3f wm)
 //   eta_rel : eta_transmitted / eta_incident.
 export std::optional<Vector3f> refract(Vector3f wo, Vector3f wm, f32 eta_rel)
 {
-  // Formulas:
-  //   cos_i   = dot(wo, wm)                          (signed; sign tells which side)
-  //   sin^2_i = max(0, 1 - cos_i^2)
-  //   sin^2_t = sin^2_i / eta_rel^2                  (Snell's law)
-  //   TIR when sin^2_t >= 1
-  //   cos_t   = sqrt(1 - sin^2_t)                    (positive magnitude)
-  //   wi      = -wo / eta_rel
-  //           + (cos_i / eta_rel - copysign(cos_t, cos_i)) * wm
-
   f32 cos_i  = dot(wo, wm);
   f32 sin2_i = std::max(0.f, 1.f - cos_i * cos_i);
   f32 sin2_t = sin2_i / (eta_rel * eta_rel);
@@ -65,3 +56,4 @@ export std::optional<Vector3f> refract(Vector3f wo, Vector3f wm, f32 eta_rel)
   f32 cos_t  = std::sqrt(1.f - sin2_t);
   return -wo / eta_rel + (cos_i / eta_rel - std::copysign(cos_t, cos_i)) * wm;
 }
+
