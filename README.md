@@ -21,13 +21,6 @@ cmake --preset gcc-debug
 cmake --build --preset gcc-debug
 ```
 
-## Building with Clang
-
-```bash
-cmake --preset clang-debug
-cmake --build --preset clang-debug
-```
-
 ## Manual configuration (without presets)
 
 ```bash

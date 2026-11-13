@@ -146,6 +146,14 @@ target_link_libraries(scene_module PUBLIC
 # target_sources(glTFLoader_module PUBLIC FILE_SET CXX_MODULES FILES src/gltf_loader/gltf_loader.cppm)
 # target_link_libraries(glTFLoader_module PUBLIC core_module scene_module)
 
+
+# -------------------------------
+#       stb module
+# -------------------------------
+add_library(stb_module)
+target_sources(stb_module PUBLIC FILE_SET CXX_MODULES FILES src/stb_image/stb.cppm)
+target_link_libraries(stb_module PUBLIC core_module core_module)
+
 # -------------------------------
 #       executable file
 # -------------------------------
@@ -158,4 +166,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   bsdf_module
   sampling_module
   materials_module
+  stb_module
 )

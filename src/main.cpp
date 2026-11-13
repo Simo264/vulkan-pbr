@@ -7,6 +7,7 @@ import primitives;
 import bsdf;
 import sampling;
 import materials;
+import stb;
 
 constexpr auto image_width        = 900;
 constexpr auto image_height       = 720;
@@ -165,33 +166,37 @@ void render_tile(i32 tile_idx, const Scene& scene, Camera& cam, RandomGenerator&
   }
 }
 
-void save_image(Camera& cam, std::string_view filename, i32 image_width, i32 image_height)
+void render_to_png(Camera& cam, std::string_view filename, i32 image_width, i32 image_height)
 {
-  std::ofstream out{filename.data(), std::ios::binary};
+  constexpr auto channels = 3;
 
-  out << "P6\n" << image_width << ' ' << image_height << "\n255\n";
-  auto to255 = [](f32 v) -> byte {
-    v = std::clamp(v, 0.f, 1.f);
-    return static_cast<byte>(255.f * v);
+  std::vector<u8> pixels(image_width * image_height * channels);
+
+  auto to_byte = [](f32 value) -> u8 {
+    value = std::clamp(value, 0.f, 1.f);
+    return static_cast<u8>(255.f * value);
   };
 
-  for (auto j = 0; j < image_height; ++j)
+  for (i32 j = 0; j < image_height; ++j)
   {
-    for (auto i = 0; i < image_width; ++i)
+    for (i32 i = 0; i < image_width; ++i)
     {
-      Color3f c = clamp(cam.film.at(i, j), 0.f, 1.f);
-      out.put(static_cast<char>(to255(c.r)));
-      out.put(static_cast<char>(to255(c.g)));
-      out.put(static_cast<char>(to255(c.b)));
+      Color3f color = clamp(cam.film.at(i, j), 0.f, 1.f);
+      usize index = (j * image_width + i) * channels;
+      pixels[index + 0] = to_byte(color.r);
+      pixels[index + 1] = to_byte(color.g);
+      pixels[index + 2] = to_byte(color.b);
     }
   }
-  std::println("Saved image: {} ({}x{})", filename, image_width, image_height);
+
+  if (!stb::save_image(filename, pixels, image_width, image_height))
+    throw std::runtime_error("Failed to save PNG image");
 }
 
 i32 main()
 {
   Camera camera{
-    Point3f{0.f, 5.f, -9.f},   // position
+    Point3f{0.f, 5.f, -10.f},   // position
     Point3f{0.f, 0.f, 5.f},    // look at
     35.f,                      // FOV in degrees,
     image_width, image_height
@@ -204,10 +209,8 @@ i32 main()
   Scene scene;
   scene.add(Disk{
     Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 10.f,
-    Diffuse{.albedo = Color3f{0.9f}}
+    Diffuse{ .albedo = Color3f{0.9f, 0.9f, 0.9f} }
   });
-
-  // conductors
 
   scene.add(Sphere{
     Point3f{-3.f, 0.f, 0.f}, 1.0f,
@@ -234,28 +237,28 @@ i32 main()
     }
   });
 
-  scene.add(Sphere{
-    Point3f{-3.f, 0.f, 4.f}, 1.0f,
-    Dielectric{
-      .eta = 1.5f // clear glass
-    }
-  });
-  scene.add(Sphere{
-    Point3f{0.f, 0.f, 4.f}, 1.0f,
-    Diffuse{
-      .albedo = Color3f{0.85f}
-    }
-  });
-  auto cube = Cube{
-    Point3f{3.f, 0.f, 4.f},
-    Conductor{
-      .eta = Color3f{2.91, 2.95, 2.88},
-      .k = Color3f{3.07, 2.88, 2.74},
-      .alpha_x = 0.02f, .alpha_y = 0.02f,
-    }
-  };
-  cube.set_transform(translate(Point3f{3.f, 0.f, 4.f}) * rotate_y(45.f) * scale(Vector3f{2.f, 2.f, 2.f}));
-  scene.add(cube);
+  // scene.add(Sphere{
+  //   Point3f{-3.f, 0.f, 4.f}, 1.0f,
+  //   Dielectric{
+  //     .eta = 1.5f // clear glass
+  //   }
+  // });
+  // scene.add(Sphere{
+  //   Point3f{0.f, 0.f, 4.f}, 1.0f,
+  //   Diffuse{
+  //     .albedo = Color3f{0.85f}
+  //   }
+  // });
+  // auto cube = Cube{
+  //   Point3f{3.f, 0.f, 4.f},
+  //   Conductor{
+  //     .eta = Color3f{2.91, 2.95, 2.88},
+  //     .k = Color3f{3.07, 2.88, 2.74},
+  //     .alpha_x = 0.02f, .alpha_y = 0.02f,
+  //   }
+  // };
+  // cube.set_transform(translate(Point3f{3.f, 0.f, 4.f}) * rotate_y(45.f) * scale(Vector3f{2.f, 2.f, 2.f}));
+  // scene.add(cube);
 
   // ==============================
   // Prepare for rendering
@@ -309,6 +312,6 @@ i32 main()
   auto t_end = std::chrono::steady_clock::now();
   auto elapsed = std::chrono::duration<f64>(t_end - t_start).count();
   std::println("Rendered in {:.2f} s", elapsed);
-  save_image(camera, "output.ppm", image_width, image_height);
+  render_to_png(camera, "output.png", image_width, image_height);
   return 0;
 }
