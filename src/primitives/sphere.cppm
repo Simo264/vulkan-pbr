@@ -9,11 +9,9 @@ import std;
 export class Sphere
 {
 public:
-  explicit Sphere(Point3f center,
-                  f32 radius,
-                  Material mat) : center{center}, radius{radius}, mat{mat} {}
+  explicit Sphere(Point3f center, f32 radius, Material mat) : center{center}, radius{radius}, mat{mat} {}
 
-  std::optional<HitRecord> intersect(const Ray& ray, f32 t_min, f32 t_max) const
+  std::optional<HitRecord> intersect(Ray ray, f32 t_min, f32 t_max) const
   {
     Vector3f oc = ray.o - center;
 

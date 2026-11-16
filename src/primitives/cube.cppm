@@ -15,13 +15,13 @@ public:
     mat{mat}
   {}
 
-  void set_transform(const Transform& t)
+  void set_transform(Transform t)
   {
     object_to_world = t;
     world_to_object = inverse(t);
   }
 
-  std::optional<HitRecord> intersect(const Ray& ray, f32 t_min, f32 t_max) const
+  std::optional<HitRecord> intersect(Ray ray, f32 t_min, f32 t_max) const
   {
     // 1) Raggio in object space
     Point3f  lo = world_to_object(ray.o);   // punto: con traslazione

@@ -16,7 +16,7 @@ export struct Film
     pixels(static_cast<usize>(res_x) * static_cast<usize>(res_y), Color3f{0.f, 0.f, 0.f})
   {}
 
-  void add_sample(i32 x, i32 y, const Color3f& c) { pixels.at(static_cast<usize>(y) * res_x + x) += c; }
+  void add_sample(i32 x, i32 y, Color3f c) { pixels.at(static_cast<usize>(y) * res_x + x) += c; }
 
   Color3f& at(i32 x, i32 y) { return pixels.at(static_cast<usize>(y) * res_x + x); }
 
@@ -33,12 +33,12 @@ export struct Film
 export class Camera
 {
 public:
-  Camera(const Point3f&  pos,
-         const Point3f&  target,
-         f32             fov_degrees,
-         i32             res_x,
-         i32             res_y,
-         const Vector3f& world_up = {0.f, 1.f, 0.f})
+  Camera(Point3f  pos,
+         Point3f  target,
+         f32      fov_degrees,
+         i32      res_x,
+         i32      res_y,
+         Vector3f world_up = {0.f, 1.f, 0.f})
       : position{pos}, view_dir{normalize(target - pos)}
   {
     right = normalize(cross(world_up, view_dir));
@@ -63,7 +63,7 @@ public:
                      + (ndc_x * film.half_w) * right
                      + (ndc_y * film.half_h) * up;
 
-    return Ray{ position, normalize(p_film - position) };
+    return Ray{ position, normalize(p_film - position), MAX_FLOAT_32 };
   }
 
   Point3f position{};

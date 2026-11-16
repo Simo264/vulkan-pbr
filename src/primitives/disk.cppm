@@ -9,12 +9,9 @@ import std;
 export class Disk
 {
 public:
-  explicit Disk(Point3f p, 
-                Vector3f n, 
-                f32 radius, 
-                Material mat) : center{p}, normal{n}, radius{radius}, mat{mat} {}
+  explicit Disk(Point3f p, Vector3f n, f32 radius, Material mat) : center{p}, normal{n}, radius{radius}, mat{mat} {}
 
-  std::optional<HitRecord> intersect(const Ray& ray, f32 t_min, f32 t_max) const
+  std::optional<HitRecord> intersect(Ray ray, f32 t_min, f32 t_max) const
   {
     f32 denom = dot(normal, ray.d);
     if (std::abs(denom) < 1e-8f) return std::nullopt; // parallel to the plane

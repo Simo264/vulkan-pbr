@@ -11,21 +11,23 @@ export{
     constexpr Color3f(f32 r, f32 g, f32 b) : r{r}, g{g}, b{b} {}
     explicit constexpr Color3f(f32 v) : r{v}, g{v}, b{v} {}
 
-    constexpr Color3f& operator+=(const Color3f& o) { r += o.r; g += o.g; b += o.b; return *this; }
-    constexpr Color3f& operator-=(const Color3f& o) { r -= o.r; g -= o.g; b -= o.b; return *this; }
-    constexpr Color3f& operator*=(const Color3f& o) { r *= o.r; g *= o.g; b *= o.b; return *this; }
-    constexpr Color3f& operator/=(const Color3f& o) { r /= o.r; g /= o.g; b /= o.b; return *this; }
+    constexpr bool operator==(Color3f o) { return this->r == o.r && this->g == o.g && this->b == o.b; }
+    constexpr Color3f& operator+=(Color3f o) { r += o.r; g += o.g; b += o.b; return *this; }
+    constexpr Color3f& operator-=(Color3f o) { r -= o.r; g -= o.g; b -= o.b; return *this; }
+    constexpr Color3f& operator*=(Color3f o) { r *= o.r; g *= o.g; b *= o.b; return *this; }
+    constexpr Color3f& operator/=(Color3f o) { r /= o.r; g /= o.g; b /= o.b; return *this; }
     constexpr Color3f& operator*=(f32 s) { r *= s; g *= s; b *= s; return *this; }
-    constexpr Color3f& operator/=(f32 s) { const f32 inv = 1.f / s; r *= inv; g *= inv; b *= inv; return *this; }
+    constexpr Color3f& operator/=(f32 s) { f32 inv = 1.f / s; r *= inv; g *= inv; b *= inv; return *this; }
 
     f32 r{}, g{}, b{};
   };
 
-  constexpr Color3f operator+(Color3f a, const Color3f& b) { return a += b; }
-  constexpr Color3f operator-(Color3f a, const Color3f& b) { return a -= b; }
-  constexpr Color3f operator*(Color3f a, const Color3f& b) { return a *= b; }
-  constexpr Color3f operator/(Color3f a, const Color3f& b) { return a /= b; }
-  constexpr Color3f operator-(const Color3f& c) { return {-c.r, -c.g, -c.b}; }
+  //constexpr bool operator==(Color3f a, Color3f b) { return a == b; }
+  constexpr Color3f operator+(Color3f a, Color3f b) { return a += b; }
+  constexpr Color3f operator-(Color3f a, Color3f b) { return a -= b; }
+  constexpr Color3f operator*(Color3f a, Color3f b) { return a *= b; }
+  constexpr Color3f operator/(Color3f a, Color3f b) { return a /= b; }
+  constexpr Color3f operator-(Color3f& c) { return {-c.r, -c.g, -c.b}; }
   constexpr Color3f operator*(Color3f c, f32 s) { return c *= s; }
   constexpr Color3f operator*(f32 s, Color3f c) { return c *= s; }
   constexpr Color3f operator/(Color3f c, f32 s) { return c /= s; }
@@ -37,5 +39,5 @@ export{
       std::min(std::max(c.b, lo), hi)
     };
   }
-  constexpr Color3f lerp(const Color3f& a, const Color3f& b, f32 t) { return a + t * (b - a); }
+  constexpr Color3f lerp(Color3f a, Color3f b, f32 t) { return a + t * (b - a); }
 };

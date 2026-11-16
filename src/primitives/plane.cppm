@@ -9,11 +9,9 @@ import std;
 export class Plane
 {
 public:
-  explicit Plane(Point3f p, 
-                 Vector3f n,
-                 Material mat) : center{p}, normal{n}, mat{mat} {}
+  explicit Plane(Point3f p, Vector3f n, Material mat) : center{p}, normal{n}, mat{mat} {}
 
-  std::optional<HitRecord> intersect(const Ray& ray, f32 t_min, f32 t_max) const
+  std::optional<HitRecord> intersect(Ray ray, f32 t_min, f32 t_max) const
   {
     f32 denom = dot(normal, ray.d);
 

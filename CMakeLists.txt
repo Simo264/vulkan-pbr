@@ -1,10 +1,5 @@
 cmake_minimum_required(VERSION 4.0)
 
-# enable module scanning
-set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "f35a9ac6-8463-4d38-8eec-5d6008153e7d")
-set(CMAKE_CXX_MODULE_STD 1)
-set(CMAKE_CXX_SCAN_FOR_MODULES ON)
-
 project(vulkan-pbr VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -56,17 +51,6 @@ target_sources(camera_module PUBLIC FILE_SET CXX_MODULES FILES
   src/camera/camera.cppm
 )
 target_link_libraries(camera_module PUBLIC core_module)
-
-
-# -------------------------------
-#       BVH module
-# -------------------------------
-# add_library(bvh_module)
-# target_sources(bvh_module PUBLIC FILE_SET CXX_MODULES FILES src/bvh/bvh.cppm src/bvh/bbox.cppm)
-# target_link_libraries(bvh_module PUBLIC
-#   core_module
-#   camera_module
-# )
 
 # -------------------------------
 #       Sampling module
@@ -130,27 +114,29 @@ target_link_libraries(primitives_module PUBLIC
 )
 
 # -------------------------------
+#       Lights module
+# -------------------------------
+add_library(lights_module)
+target_sources(lights_module PUBLIC FILE_SET CXX_MODULES FILES
+  src/lights/lights.cppm
+  #src/lights/point_light.cppm
+)
+target_link_libraries(lights_module PUBLIC
+  core_module
+)
+
+# -------------------------------
 #       Scene module
 # -------------------------------
 add_library(scene_module)
-target_sources(scene_module PUBLIC FILE_SET CXX_MODULES FILES
-  src/scene.cppm
-
-)
+target_sources(scene_module PUBLIC FILE_SET CXX_MODULES FILES src/scene.cppm)
 target_link_libraries(scene_module PUBLIC
   core_module
   camera_module
-  primitives_module
   hitrecord_module
+  primitives_module
+  lights_module
 )
-
-# -------------------------------
-#       glTF_loader module
-# -------------------------------
-# add_library(glTFLoader_module)
-# target_sources(glTFLoader_module PUBLIC FILE_SET CXX_MODULES FILES src/gltf_loader/gltf_loader.cppm)
-# target_link_libraries(glTFLoader_module PUBLIC core_module scene_module)
-
 
 # -------------------------------
 #       stb module
@@ -170,5 +156,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   primitives_module
   bsdf_module
   materials_module
+  lights_module
   stb_module
 )

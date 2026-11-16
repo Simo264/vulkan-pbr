@@ -6,22 +6,34 @@ import camera;
 import primitives;
 import bsdf;
 import materials;
+import lights;
 import stb;
 
 constexpr auto image_width        = 900;
 constexpr auto image_height       = 720;
-constexpr auto samples_per_pixel  = 512;
+constexpr auto samples_per_pixel  = 32;
 constexpr auto max_depth          = 20;
 constexpr auto num_threads        = 8;
 constexpr auto tile_size          = 32; // 32x32
-constexpr auto tiles_x = (image_width + tile_size - 1) / tile_size;
-constexpr auto tiles_y = (image_height + tile_size - 1) / tile_size;
-constexpr auto n_tiles = tiles_x * tiles_y;
+constexpr auto tiles_x            = (image_width + tile_size - 1) / tile_size;
+constexpr auto tiles_y            = (image_height + tile_size - 1) / tile_size;
+constexpr auto n_tiles            = tiles_x * tiles_y;
 
-Color3f compute_shading(const Ray&       r,
-                        const Scene&     scene,
-                        RandomGenerator& rng,
-                        i32              depth)
+bool is_occluded(const Scene& scene, Point3f p, Vector3f n, Vector3f wi_world, f32 distance)
+{
+  constexpr auto eps = 1e-4f;
+
+  f32 side = std::signbit(dot(wi_world, n));
+  Point3f origin = p + n * side * eps;
+  Ray shadow_ray{origin, wi_world, distance - eps};
+
+  auto hit = scene.intersect(shadow_ray);
+  if (hit) return true; // in shadow
+
+  return false;
+}
+
+Color3f compute_shading(Ray r, const Scene& scene, RandomGenerator& rng, i32 depth)
 {
   static auto sky_color = [](Vector3f d){ f32 t = 0.5f * (d.y + 1.f); return lerp(Color3f{1.f, 1.f, 1.f}, Color3f{0.5f, 0.7f, 1.f}, t); };
 
@@ -35,25 +47,32 @@ Color3f compute_shading(const Ray&       r,
   // All BSDF math happens in this local space, where the normal is the +z axis.
   ShadingFrame frame{hit->n};
   Vector3f wo = frame.to_local(-r.d); // in local shading frame
+  Color3f Lo{0.f};
 
-  BSDFSample s = std::visit([&](const auto& m) { return sample_material(m, wo, rng); }, hit->mat);
-  if (!s.valid)
-    return Color3f{0.f};
+  // Direct illumination
+  for(const auto& light : scene.lights())
+  {
+    LightSample ls = std::visit([&](const auto& l) { return sample_li(l, hit->p); }, light); // wi, Li, pdf, distance
+    if (ls.pdf == 0.f) continue; // invalid / unimplemented stub
+    if (ls.L   == 0.f) continue; // black light
 
-  auto wi = s.wi;
-  auto cos_i = s.cos_i;
-  auto f = s.f;
-  auto pdf = s.pdf;
+    Vector3f wi = frame.to_local(ls.wi);   // world -> local
+    Color3f f = std::visit([&](const auto& m) { return eval_material(m, wo, wi); }, hit->mat);
+    if(f == Color3f{0.f}) continue;
 
-  Vector3f wi_world = frame.to_world(wi);
-  f32 side = dot(wi_world, hit->n) > 0.f ? 1.f : -1.f;
-  Point3f p_offset = hit->p + hit->n * (side * 1e-4f);
-  Ray incoming_ray{p_offset, wi_world};
+    if(is_occluded(scene, hit->p, hit->n, ls.wi, ls.dist))
+      continue;
 
-  Color3f Li = compute_shading(incoming_ray, scene, rng, depth - 1);
-  // Monte Carlo Estimator. General estimator with any PDF formula:
-  // F_n = 1/n sum_i^n f(X_i)/p(X_i)
-  Color3f Lo = (f * cos_i * Li) / pdf;
+    // Monte Carlo Estimator. General estimator with any PDF formula:
+    // F_n = 1/n sum_i^n f(X_i)/p(X_i)
+    f32 cos_i = std::abs(wi.z);
+    f32 Li = ls.L;
+    f32 pdf = ls.pdf;
+    Lo += (f * cos_i * Li) / pdf;
+  }
+
+  // Indirect illumination
+  // TODO
   return Lo;
 }
 
@@ -111,9 +130,9 @@ void render_to_png(Camera& cam, std::string_view filename, i32 image_width, i32 
 i32 main()
 {
   Camera camera{
-    Point3f{0.f, 4.f, -10.f},   // position
-    Point3f{0.f, 0.f, 5.f},    // look at
-    35.f,                      // FOV in degrees,
+    Point3f{0.f, 1.f, -5.f}, // position
+    Point3f{0.f, 0.f, 0.f},   // look at
+    35.f,                     // FOV in degrees,
     image_width, image_height
   };
 
@@ -122,98 +141,42 @@ i32 main()
   // ==============================
 
   Scene scene;
+
+  scene.add(PointLight{Point3f{0.5f, 2.f, 0.f}, 10.f});
+
   scene.add(Disk{
-    Point3f{0.f, -1.f, 0.f}, Vector3f{0.f, 1.f, 0.f}, 10.f,
-    Diffuse{ .albedo = Color3f{0.75f} }
-  });
-
-  scene.add(Sphere{
-    Point3f{-3.f, 0.f, 4.f}, 1.0f,
-    Diffuse{ .albedo = Color3f{0.75f, 0.15f, 0.15} }
+    Point3f{0.f, -1.f, 0.f},
+    Vector3f{0.f, 1.f, 0.f},
+    10.f,
+    Diffuse{.albedo = Color3f{0.8f, 0.9f, 1.f}}
   });
   scene.add(Sphere{
-    Point3f{0.f, 0.f, 4.f}, 1.0f,
+    Point3f{0.f, -0.75f, 0.f},
+    0.25f,
+    Diffuse{.albedo = Color3f{0.75f, 0.15f, 0.15}}
+  });
+  scene.add(Sphere{
+    Point3f{-1.f, -0.75f, 2.f},
+    0.25f,
+    Diffuse{.albedo = Color3f{0.75f, 0.15f, 0.75}}
+  });
+  scene.add(Sphere{
+    Point3f{-1.f, -0.75f, 0.f},
+    0.25f,
     Conductor{
       .eta = Color3f{0.155, 0.116, 0.138}, // polished silver
       .k   = Color3f{4.83, 3.99, 2.48},
-      .alpha_x = 0.0001f, .alpha_y = 0.0001f
+      .alpha_x = 0.05f, .alpha_y = 0.05f
     }
   });
   scene.add(Sphere{
-    Point3f{3.f, 0.f, 4.f}, 1.0f,
-    Conductor{
-      .eta = Color3f{0.155, 0.116, 0.138}, // polished silver
-      .k   = Color3f{4.83, 3.99, 2.48},
-      .alpha_x = 0.05f, .alpha_y = 0.20f
-    }
-  });
-  scene.add(Sphere{
-    Point3f{-3.f, 0.f, 0.f}, 1.0f,
+    Point3f{1.f, -0.75f, 1.f},
+    0.25f,
     Dielectric{
-      .eta = 1.5,
-      .alpha_x = 0.0001f, .alpha_y = 0.0001f
+      .eta = 1.5f, // smooth glass
+      .alpha_x = 0.01f, .alpha_y = 0.01f
     }
   });
-  scene.add(Sphere{
-    Point3f{0.f, 0.f, 0.f}, 1.0f,
-    Dielectric{
-      .eta = 1.5,
-      .alpha_x = 0.1f, .alpha_y = 0.1f
-    }
-  });
-
-  //   scene.add(Sphere{
-  //     Point3f{-3.f, 0.f, 0.f}, 1.0f,
-  //     Dielectric{
-  //       .eta = 1.5,
-  //       .alpha_x = 0.0001f, .alpha_y = 0.0001f
-  //     }
-  //   });
-  //
-  //   scene.add(Sphere{
-  //     Point3f{0.f, 0.f, 0.f}, 1.0f,
-  //     Dielectric{
-  //       .eta = 2.42f,
-  //       .alpha_x = 0.0001f, .alpha_y = 0.0001f
-  //     }
-  //   });
-
-  // scene.add(Sphere{
-  //   Point3f{-3.f, 0.f, 0.f}, 1.0f,
-  //   Conductor{
-  //     .eta = Color3f{0.155, 0.116, 0.138}, // polished silver
-  //     .k   = Color3f{4.83, 3.99, 2.48},
-  //     .alpha_x = 0.0001f, .alpha_y = 0.0001f
-  //   }
-  // });
-  // scene.add(Sphere{
-  //   Point3f{0.f, 0.f, 0.f}, 1.0f,
-  //   Conductor{
-  //     .eta = Color3f{0.155, 0.116, 0.138}, // anisotropic brushed metal.
-  //     .k   = Color3f{4.83, 3.99, 2.48},
-  //     .alpha_x = 0.05f, .alpha_y = 0.15f
-  //   }
-  // });
-  // scene.add(Sphere{
-  //   Point3f{3.f, 0.f, 0.f}, 1.0f,
-  //   Conductor{
-  //     .eta = Color3f{0.155, 0.116, 0.138}, // clearly rough gold.
-  //     .k   = Color3f{4.83, 3.99, 2.48},
-  //     .alpha_x = 0.1f, .alpha_y = 0.1f
-  //   }
-  // });
-
-
-  // auto cube = Cube{
-  //   Point3f{3.f, 0.f, 4.f},
-  //   Conductor{
-  //     .eta = Color3f{2.91, 2.95, 2.88},
-  //     .k = Color3f{3.07, 2.88, 2.74},
-  //     .alpha_x = 0.02f, .alpha_y = 0.02f,
-  //   }
-  // };
-  // cube.set_transform(translate(Point3f{3.f, 0.f, 4.f}) * rotate_y(45.f) * scale(Vector3f{2.f, 2.f, 2.f}));
-  // scene.add(cube);
 
   // ==============================
   // Prepare for rendering

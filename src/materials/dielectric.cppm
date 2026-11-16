@@ -4,6 +4,8 @@ import core;
 import bsdf;
 import std;
 
+constexpr auto IOR_air = 1.0f;
+
 // The Dielectric class includes any substance (whether gaseous, liquid, or solid) that acts as an electric insulator,
 // including glass, water, mineral oil, and air.
 export struct Dielectric
@@ -54,7 +56,8 @@ BSDFSample sample_smooth(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, RandomG
     s.wi    = wi;
     s.cos_i = cos_wi;
     s.f     = Color3f{F / cos_wi};
-    s.pdf   = F; // = 1 in case of total internal reflection
+    // s.pdf   = F; // = 1 in case of total internal reflection
+    s.pdf = 1.f;
     s.valid = true;
   }
   else
@@ -71,7 +74,8 @@ BSDFSample sample_smooth(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, RandomG
     s.wi    = wi;
     s.cos_i = cos_wi;
     s.f     = Color3f{T / (eta_rel * eta_rel * cos_wi)};
-    s.pdf   = T;
+    //s.pdf   = T;
+    s.pdf = 1.f;
     s.valid = true;
   }
   return s;
@@ -82,9 +86,9 @@ BSDFSample sample_rough(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, Trowbrid
   Vector3f wm = distrib.sample_wm(wo, rng);
   f32 cos_om = dot(wo, wm);                  // signed: negative when wo is inside
   f32 abs_cos_om = std::abs(cos_om);
-  if (abs_cos_om <= 0.f) 
+  if (abs_cos_om <= 0.f)
     return BSDFSample{};
-  
+
   f32 F = fresnel_dielectric(std::min(abs_cos_om, 1.f), eta_t, eta_i);
   f32 T = 1.f - F;
 
@@ -154,10 +158,11 @@ BSDFSample sample_rough(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, Trowbrid
   return s;
 }
 
+// Here, the material CHOOSES wi (importance sampling) and returns
+// a BSDFSample (wi, f, pdf, cos_i). It is used when the direction is ours to pick,
+// i.e. to continue a path (indirect lighting).
 export BSDFSample sample_material(Dielectric mat, Vector3f wo, RandomGenerator& rng)
 {
-  constexpr auto IOR_air = 1.0f;
-
   bool index_matched = std::abs(mat.eta - IOR_air) < 1e-4f;
   if (index_matched) // When the IOR is 1 on both sides, the interface is optically invisible
   {
@@ -182,4 +187,89 @@ export BSDFSample sample_material(Dielectric mat, Vector3f wo, RandomGenerator& 
   else
     s = sample_rough(wo, eta_i, eta_t, eta_rel, distrib, rng);
   return s;
+}
+
+// Evaluates the BSDF f(wo, wi) for a given pair of directions, both expressed
+// in the local shading frame (normal = +z). It returns only the value of f.
+// Here, wi is GIVEN from outside (e.g. the direction toward a light) and
+// the material only answers "how much light is scattered from wi to wo?".
+// No random numbers and no pdf are involved.
+export Color3f eval_material(Dielectric mat, Vector3f wo, Vector3f wi)
+{
+  // Index-matched interface (eta = 1) -> return 0: there is no surface to scatter at.
+  bool index_matched = std::abs(mat.eta - IOR_air) < 1e-4f;
+  if(index_matched)
+    return Color3f{0.f};
+
+  TrowbridgeReitzDistribution distrib{mat.alpha_x, mat.alpha_y};
+
+  // BRDF evaluation always returns zero in the smooth case,
+  // since the specular peak is considered unreachable by other sampling methods.
+  // A fundamental issue with perfect specular scattering distributions is that
+  // they contain Dirac delta terms, which preclude BSDF evaluation
+  if (distrib.effectively_smooth())
+    return Color3f{0.f};  // both reflection and refraction are Diract Delta distribution
+
+  f32 cos_o = std::abs(wo.z);
+  f32 cos_i = std::abs(wi.z);
+  if(cos_o == 0.f || cos_i == 0.f)
+    return Color3f{0.f};
+
+  // The sign of wo.z tells whether the ray is entering or leaving the medium, 
+  // which fixes eta_i, eta_t and the relative IOR. 
+  // The wi's hemisphere selects the branch
+  bool entering = wo.z > 0.f;
+  f32 eta_i  = entering ? IOR_air : mat.eta;
+  f32 eta_t  = entering ? mat.eta : IOR_air;
+  f32 eta_rel = eta_t / eta_i;
+
+  Color3f bsdf{0.f};
+
+  // handle reflection (same hemisphere)
+  if(same_hemisphere(wo, wi))
+  {
+    Vector3f wh_raw = wo + wi;
+    if(length_squared(wh_raw) < 1e-4f)
+      return Color3f{0.f};
+    Vector3f wh = normalize(wh_raw);
+
+    f32 c_o = dot(wo, wh);
+    if(c_o <= 0.f)
+      return Color3f{0.f};
+
+    // Same microfacet formula as the conductor
+    f32 F = fresnel_dielectric(std::min(c_o, 1.f), eta_t, eta_i);
+    f32 D = distrib.D(wh);
+    f32 G = distrib.G(wo, wi);
+    bsdf  = Color3f{F * D * G / (4 * cos_o * cos_i)};
+  }
+  // handle transmission (opposite hemispheres)
+  else
+  {
+    Vector3f wh_raw = -(eta_i * wo + eta_t * wi); // Walter generalized half-vector
+    if(length_squared(wh_raw) < 1e-4f)
+      return Color3f{0.f};
+
+    Vector3f wh = normalize(wh_raw);
+    if (wh.z < 0.f) 
+      wh = -wh; // face-forward to +z
+
+    f32 c_o = dot(wo, wh);
+    f32 c_i = dot(wi, wh);
+    if (c_i * wi.z < 0.f || c_o * wo.z < 0.f) // Microfacets facing away from wo or wi are rejected.
+      return Color3f{0.f};
+
+    f32 abs_c_o = std::abs(c_o);
+    f32 abs_c_i = std::abs(c_i);
+    f32 F = fresnel_dielectric(std::min(abs_c_o, 1.f), eta_t, eta_i);
+    f32 T = 1 - F;
+    f32 D = distrib.D(wh);
+    f32 G = distrib.G(wo, wi);
+    f32 denom = c_i + c_o / eta_rel;
+    if(std::abs(denom) < 1e-4f)
+      return Color3f{0.f};
+
+    bsdf = Color3f{(D * T * G * abs_c_i * abs_c_o) / (cos_i * cos_o * denom * denom * eta_rel * eta_rel)};
+  }
+  return bsdf;
 }

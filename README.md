@@ -6,6 +6,26 @@ A physically-based renderer implemented in C++23, following the
 The project starts as a CPU-only ray tracer and will progressively evolve
 to leverage GPU acceleration via Vulkan.
 
+## Implemented Primitives
+
+- Plane
+- Disk
+- Sphere
+- Cube
+
+## Materials
+
+- Diffuse
+- Conductor
+- Dielectric
+- Roughness via Microfacet Theory
+
+## Result
+
+![output](output_no_lights.png)
+![output](output_point_light.png)
+
+
 ## Requirements
 
 - CMake 4.0 or newer

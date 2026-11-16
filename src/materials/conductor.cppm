@@ -65,6 +65,9 @@ BSDFSample sample_rough(Conductor mat, Vector3f wo, TrowbridgeReitzDistribution 
   return s;
 }
 
+// Here, the material CHOOSES wi (importance sampling) and returns
+// a BSDFSample (wi, f, pdf, cos_i). It is used when the direction is ours to pick,
+// i.e. to continue a path (indirect lighting).
 export BSDFSample sample_material(Conductor mat, Vector3f wo, RandomGenerator& rng)
 {
   TrowbridgeReitzDistribution distrib{mat.alpha_x, mat.alpha_y};
@@ -77,4 +80,46 @@ export BSDFSample sample_material(Conductor mat, Vector3f wo, RandomGenerator& r
   else
     s = sample_rough(mat, wo, distrib, rng);
   return s;
+}
+
+// Evaluates the BSDF f(wo, wi) for a given pair of directions, both expressed
+// in the local shading frame (normal = +z). It returns only the value of f.
+// Here, wi is GIVEN from outside (e.g. the direction toward a light) and 
+// the material only answers "how much light is scattered from wi to wo?".
+// No random numbers and no pdf are involved.
+export Color3f eval_material(Conductor mat, Vector3f wo, Vector3f wi)
+{
+  // Opposite hemispheres: return 0 (a conductor does not transmit).
+  if (!same_hemisphere(wo, wi)) return Color3f{0.f};
+
+  TrowbridgeReitzDistribution distrib{mat.alpha_x, mat.alpha_y};
+
+  // BRDF evaluation always returns zero in the smooth case,
+  // since the specular peak is considered unreachable by other sampling methods.
+  // A fundamental issue with perfect specular scattering distributions is that
+  // they contain Dirac delta terms, which preclude BSDF evaluation
+  if (distrib.effectively_smooth()) return Color3f{0.f};   // smooth -> zero
+
+  // Rough case: Torrance-Sparrow microfacet model,
+  //    f = D(wm) * F(wo . wm) * G(wo, wi) / (4 * |cos_i| * |cos_o|)
+  // - wm is the half vector: the only microfacet normal that can reflect wo into wi.
+  // - D is the distribution of microfacet normals (Trowbridge-Reitz),
+  // - F is the Fresnel, evaluated at the angle between wo and wm,
+  // - G is the masking-shadowing function between microfacets.
+
+  Vector3f wh = wo + wi;
+  if(length_squared(wh) < 1e-4f)
+    return Color3f{0.f}; // wi = -wo, degenerate
+
+  wh = normalize(wh);
+  f32 cos_om = std::min(dot(wo, wh), 1.f);
+  f32 cos_i  = std::abs(wi.z);
+  f32 cos_o  = std::abs(wo.z);
+  if(cos_i <= 0.f || cos_o <= 0.f)
+    return Color3f{0.f};
+
+  Color3f F  = fresnel_conductor(cos_om, mat.eta, mat.k);
+  f32 Dv = distrib.D(wh);
+  f32 Gv = distrib.G(wo, wi);
+  return Color3f{(F * Dv * Gv) / (4.f * cos_i * cos_o)};
 }
