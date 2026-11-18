@@ -6,3 +6,4 @@ export import :vector;
 export import :point;
 export import :matrix;
 export import :transform;
+export import :frame;

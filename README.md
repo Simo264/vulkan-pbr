@@ -24,7 +24,8 @@ to leverage GPU acceleration via Vulkan.
 
 ![output](output_no_lights.png)
 ![output](output_point_light.png)
-
+![output](output_area_light_disk.png)
+![output](output_area_light_sphere.png)
 
 ## Requirements
 

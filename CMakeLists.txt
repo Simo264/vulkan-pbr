@@ -25,6 +25,7 @@ target_sources(core_math_module PUBLIC FILE_SET CXX_MODULES FILES
   src/core/math/transform.cppm
   src/core/math/utils.cppm
   src/core/math/random.cppm
+  src/core/math/frame.cppm
 )
 target_link_libraries(core_math_module PUBLIC core_types_module)
 
@@ -65,14 +66,10 @@ target_link_libraries(sampling_module PUBLIC core_module)
 add_library(bsdf_module)
 target_sources(bsdf_module PUBLIC FILE_SET CXX_MODULES FILES
   src/bsdf/bsdf.cppm
-  src/bsdf/geometry.cppm
   src/bsdf/fresnel.cppm
   src/bsdf/trowbridge_reitz.cppm
 )
-target_link_libraries(bsdf_module PUBLIC
-  core_module
-  sampling_module
-)
+target_link_libraries(bsdf_module PUBLIC core_module sampling_module)
 
 # -------------------------------
 #       Materials module
@@ -99,18 +96,19 @@ target_link_libraries(hitrecord_module PUBLIC core_module materials_module)
 add_library(primitives_module)
 target_sources(primitives_module PUBLIC FILE_SET CXX_MODULES FILES
   src/primitives/primitives.cppm
+  src/primitives/primitive_sample.cppm
+  src/primitives/surface.cppm
   src/primitives/plane.cppm
   src/primitives/disk.cppm
   src/primitives/sphere.cppm
   src/primitives/cube.cppm
-  #src/primitives/triangle.cppm
-  #src/primitives/triangle_mesh.cppm
 )
 target_link_libraries(primitives_module PUBLIC
   core_module
   camera_module
   hitrecord_module
   materials_module
+  sampling_module
 )
 
 # -------------------------------
@@ -119,10 +117,13 @@ target_link_libraries(primitives_module PUBLIC
 add_library(lights_module)
 target_sources(lights_module PUBLIC FILE_SET CXX_MODULES FILES
   src/lights/lights.cppm
-  #src/lights/point_light.cppm
+  src/lights/light_sample.cppm
+  src/lights/point_light.cppm
+  src/lights/diffuse_area_light.cppm
 )
 target_link_libraries(lights_module PUBLIC
   core_module
+  primitives_module
 )
 
 # -------------------------------
@@ -154,7 +155,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   camera_module
   scene_module
   primitives_module
-  bsdf_module
   materials_module
   lights_module
   stb_module

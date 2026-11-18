@@ -3,41 +3,60 @@ export module sampling;
 import core;
 import std;
 
-// Shirley–Chiu concentric mapping. Produces a point uniformly distributed by area on the unit disk.
-// Required by sample_cosine_hemisphere, where the geometric interpretation of the mapping
-// (radial strips of the unit square mapped to radial strips of the disk) is what makes the cosine-weighted
-// distribution emerge naturally.
-export Point2f sample_uniform_disk_concentric(RandomGenerator& rng)
+// Concentric Disk Sampling. A Low Distortion Map Between Disk and Square, Shirley & Chiu 1997 presents
+// the idea for warping the unit square into that of a unit circle.
+// This gives a uniform distribution of samples over the disk in Cartesian space.
+// Given a disk centered origin (0,0) with radius r
+export Point2f sample_uniform_disk_concentric(f32 radius, RandomGenerator& rng)
 {
-  f32 u1 = rng.uniform();
-  f32 u2 = rng.uniform();
-  Point2f u = Point2f{u1, u2};
+  f32 x{0.f}, y{0.f};
 
-  // map u to [-1, +1]^2 and handle degeneracy at the origin
-  Point2f u_offset = 2.f * u - Vector2f{1.f, 1.f};
-  if (u_offset.x == 0.f && u_offset.y == 0.f)
+  // Draw two uniform random numbers in the range [0,1)
+  f32 r1 = rng.uniform();
+  f32 r2 = rng.uniform();
+
+  // Avoid a potential divide by zero
+  if (r1 == 0.f && r2 == 0.f)
     return Point2f{0.f, 0.f};
 
-  // Apply concentric mapping to point
-  f32 theta, r;
-  if (std::abs(u_offset.x) > std::abs(u_offset.y))
+  // Initial mapping
+  f32 phi{0.f};
+
+  f32 a = (2.f * r1) - 1.f;
+  f32 b = (2.f * r2) - 1.f;
+
+  // Uses squares instead of absolute values
+  f32 a2 = a*a;
+  f32 b2 = b*b;
+  if (a2 + b2 < 1e-6f)
+    return Point2f{0.f, 0.f};
+
+  if (a2 > b2)
   {
-    r = u_offset.x;
-    theta = PI_OVER_4 * (u_offset.y / u_offset.x);
+    // Top half
+    radius *= a;
+    phi = PI_OVER_4 * (b/a);
   }
   else
   {
-    r = u_offset.y;
-    theta = PI_OVER_2 - PI_OVER_4 * (u_offset.x / u_offset.y);
+    // Bottom half
+    radius *= b;
+    phi = PI_OVER_2 - (PI_OVER_4 * (a/b));
   }
-  return r * Point2f{std::cos(theta), std::sin(theta)};
+
+  // Map the distorted Polar coordinates (phi,radius)
+  // into the Cartesian (x,y) space
+  x = std::cos(phi) * radius;
+  y = std::sin(phi) * radius;
+  return Point2f{x,y};
 }
 
-// Samples a direction wi on the local upper hemisphere with density proportional to cos_theta
+// Malley’s Method. To sample direction vectors from a cosine-weighted distribution,
+// uniformly sample points on the unit disk and project them up to the unit hemisphere.
 export Vector3f sample_cosine_hemisphere(RandomGenerator& rng)
 {
-  // Sample uniformly on the disk (via concentric mapping)
-  Point2f d = sample_uniform_disk_concentric(rng);
+  // Sample uniformly on the unit disk (via concentric mapping)
+  Point2f d = sample_uniform_disk_concentric(1.f, rng);
   // wi = (dx, dy, sqrt(1 - dx2 - dx2))
   f32 z = std::sqrt(std::max(0.f, 1.f - (d.x * d.x) - (d.y * d.y)));
   return Vector3f{d.x, d.y, z};

@@ -3,7 +3,6 @@ export module bsdf:fresnel;
 import core;
 import std;
 
-
 // Computes the unpolarized Fresnel reflectance Fr in [0,1] for one RGB channel of a conductor, given the complex IOR:
 // tilde(eta) = eta - ik
 export f32 fresnel_conductor_channel(f32 cos_i, f32 eta, f32 k)

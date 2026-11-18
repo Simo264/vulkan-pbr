@@ -158,9 +158,6 @@ BSDFSample sample_rough(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, Trowbrid
   return s;
 }
 
-// Here, the material CHOOSES wi (importance sampling) and returns
-// a BSDFSample (wi, f, pdf, cos_i). It is used when the direction is ours to pick,
-// i.e. to continue a path (indirect lighting).
 export BSDFSample sample_material(Dielectric mat, Vector3f wo, RandomGenerator& rng)
 {
   bool index_matched = std::abs(mat.eta - IOR_air) < 1e-4f;
@@ -189,11 +186,6 @@ export BSDFSample sample_material(Dielectric mat, Vector3f wo, RandomGenerator& 
   return s;
 }
 
-// Evaluates the BSDF f(wo, wi) for a given pair of directions, both expressed
-// in the local shading frame (normal = +z). It returns only the value of f.
-// Here, wi is GIVEN from outside (e.g. the direction toward a light) and
-// the material only answers "how much light is scattered from wi to wo?".
-// No random numbers and no pdf are involved.
 export Color3f eval_material(Dielectric mat, Vector3f wo, Vector3f wi)
 {
   // Index-matched interface (eta = 1) -> return 0: there is no surface to scatter at.
@@ -215,8 +207,8 @@ export Color3f eval_material(Dielectric mat, Vector3f wo, Vector3f wi)
   if(cos_o == 0.f || cos_i == 0.f)
     return Color3f{0.f};
 
-  // The sign of wo.z tells whether the ray is entering or leaving the medium, 
-  // which fixes eta_i, eta_t and the relative IOR. 
+  // The sign of wo.z tells whether the ray is entering or leaving the medium,
+  // which fixes eta_i, eta_t and the relative IOR.
   // The wi's hemisphere selects the branch
   bool entering = wo.z > 0.f;
   f32 eta_i  = entering ? IOR_air : mat.eta;
@@ -251,7 +243,7 @@ export Color3f eval_material(Dielectric mat, Vector3f wo, Vector3f wi)
       return Color3f{0.f};
 
     Vector3f wh = normalize(wh_raw);
-    if (wh.z < 0.f) 
+    if (wh.z < 0.f)
       wh = -wh; // face-forward to +z
 
     f32 c_o = dot(wo, wh);

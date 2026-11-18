@@ -35,16 +35,6 @@ export {
         M.m[2][0]*v.x + M.m[2][1]*v.y + M.m[2][2]*v.z
       };
     }
-    // apply to Normal. Uses transpose(inverse(M)) = M_inv indexed in transposed order.
-    constexpr Normal3f operator()(const Normal3f& n) const
-    {
-      return Normal3f{
-        M_inv.m[0][0]*n.x + M_inv.m[1][0]*n.y + M_inv.m[2][0]*n.z,
-        M_inv.m[0][1]*n.x + M_inv.m[1][1]*n.y + M_inv.m[2][1]*n.z,
-        M_inv.m[0][2]*n.x + M_inv.m[1][2]*n.y + M_inv.m[2][2]*n.z
-      };
-    }
-
     constexpr bool is_identity() const { return M == Matrix4f::identity(); }
 
     Matrix4f M;

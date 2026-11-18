@@ -5,14 +5,13 @@ import materials;
 
 export struct HitRecord
 {
-  f32      t{};      // ray intersection
-  Point3f  p{};      // hit point
-  Vector3f n{};      // point it towards the beam
-  Material mat{};
-};
+  HitRecord(f32 t, Point3f p, Vector3f n, Material mat, Color3f Le) :
+   t{t}, p{p}, n{n}, mat{mat}, Le{Le}
+  {}
 
-// export struct TriangleHit
-// {
-//   f32 t{};
-//   f32 b0{}, b1{}, b2{}; // barycentric coordinates
-// };
+  f32 t{};        // ray intersection: r = o + td
+  Point3f p{};    // the surface point
+  Vector3f n{};   // the surface normal
+  Material mat{};
+  Color3f Le{};   // emitted radiance (independent of material)
+};
