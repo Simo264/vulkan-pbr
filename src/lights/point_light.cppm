@@ -13,7 +13,7 @@ export struct PointLight
   f32 intensity;
 };
 
-export Color3f L(const PointLight& light, Point3f pe, Vector3f ne, Vector3f w)
+export Color3f L(const PointLight&, Point3f, Vector3f, Vector3f)
 {
   // A point light has no surface.
   // There is no `pe` at which to evaluate it, and no `Le` with finite units at any such point.

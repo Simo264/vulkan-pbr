@@ -183,14 +183,15 @@ export {
   template <Arithmetic T>
   constexpr Vector3<T> permute(const Vector3<T>& v, usize x, usize y, usize z) { const T c[3] = {v.x, v.y, v.z}; return Vector3<T>{c[x], c[y], c[z]}; }
 
-  // The standard formula for calculating the reflection vector r
-  // of an incident vector wi off a surface with normal vector n is:
-  //    r = wi - 2(wi dot n)n
-  // where n is the normalized unit normal vector
-  constexpr Vector3f reflect(Vector3f n, Vector3f wi)
+
+  constexpr Vector3f reflect(Vector3f wo, Vector3f n)
   {
-    Vector3f r = wi - 2.f*dot(wi, n)*n;
-    return r;
+    // The standard formula for calculating the reflection vector r
+    // of an incident vector wi off a surface with normal vector n is:
+    //    r = wi - 2(wi dot n)n
+    // where n is the normalized unit normal vector
+
+    return -wo + 2.f * dot(wo, n) * n;
   }
 
   // Returns the refracted direction or std::nullopt on Total Internal Reflection (TIR).

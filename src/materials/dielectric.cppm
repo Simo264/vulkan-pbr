@@ -37,8 +37,6 @@ BSDFSample sample_index_matched(Vector3f wo)
 BSDFSample sample_smooth(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, RandomGenerator& rng)
 {
   f32 cos_i = std::abs(wo.z);
-  if (cos_i <= 0.f)
-    return BSDFSample{};
 
   BSDFSample s;
 
@@ -169,7 +167,8 @@ export BSDFSample sample_material(Dielectric mat, Vector3f wo, RandomGenerator& 
 
   // the beam comes from outside? wo.z > 0
   // the beam comes from inside? wo.z < 0
-  bool entering = wo.z > 0.f;
+  f32 cos_i = wo.z;
+  bool entering = cos_i > 0.f;
   f32 eta_i  = entering ? IOR_air : mat.eta;
   f32 eta_t  = entering ? mat.eta : IOR_air;
   f32 eta_rel = eta_t / eta_i;

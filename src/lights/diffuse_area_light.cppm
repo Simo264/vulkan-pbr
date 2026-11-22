@@ -20,8 +20,8 @@ export struct DiffuseAreaLight
     this->shape = std::move(shape);
   }
 
-  Primitive shape; // shape: the geometric surface that emits light (disk, sphere, quad, ecc.)
-  Color3f power;   // power (per-channel) Phi = pi * area * Le * scale (times 2 if two_sided)
+  Primitive shape{}; // shape: the geometric surface that emits light (disk, sphere, quad, ecc.)
+  Color3f power{};   // power (per-channel) Phi = pi * area * Le * scale (times 2 if two_sided)
 };
 
 export Color3f L(const DiffuseAreaLight& light, Point3f pe, Vector3f ne, Vector3f w)
@@ -37,8 +37,14 @@ export Color3f L(const DiffuseAreaLight& light, Point3f pe, Vector3f ne, Vector3
 
 export LightSample sample_Li(const DiffuseAreaLight& light, Point3f ps, RandomGenerator& rng)
 {
+  // TODO: implement spherical-cap sampling for Sphere emitters
+  //       (and visible-region sampling for Disk emitters).
+  //       The cap sampler should return a solid-angle pdf and skip the
+  //       area -> solid-angle Jacobian below. For now, use full-surface
+  //       sampling, which is unbiased but higher variance.
+
   PrimitiveSample sample = std::visit([&](const auto& shape){ // pe, ne, pdf_area
-    return sample_primitive_area(shape, rng);
+    return sample_surface_area(shape, rng);
   }, light.shape);
 
   Point3f pe = sample.p; // the emission point

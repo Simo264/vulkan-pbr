@@ -74,3 +74,23 @@ export Point2f sample_uniform_disk_polar(RandomGenerator& rng)
   f32 theta = 2 * PI * u2;
   return Point2f{r * std::cos(theta), r * std::sin(theta)};
 }
+
+// Draws a direction uniformly at random on the unit sphere S^2, with density
+// P(w) = 1/(4pi) with respect to solid angle.
+export Vector3f sample_uniform_sphere(RandomGenerator& rng)
+{
+  // Every point on the unit sphere S^2 can be written with the spherical coordinates: (theta, phi)
+  // Drawing theta and phi independently and uniformly looks harmless, but it packs far too many points near the poles.
+  // The fix is to stop parametrizing by theta and switch to z=cos_theta.
+  // In the coordinates (z, phi), area is exactly uniform.
+  // Z ~ unif(-1, 1)
+  // Phi ~ unif(0, 2pi)
+  // P = (sqrt(1-z^2) * cos_phi, sqrt(1-z^2) * sin_phi, Z)
+
+  f32 u1 = rng.uniform();
+  f32 u2 = rng.uniform();
+  f32 z = 1.f - 2.f * u1; // z ~ unif(-1, 1)
+  f32 phi = 2.f * PI * u2; // phi ~ Uniform(0, 2pi)
+  f32 r = std::sqrt(std::max(0.f, 1.f - z*z)); // radius of the circle at height z
+  return Vector3f{r * std::cos(phi), r * std::sin(phi), z};
+}

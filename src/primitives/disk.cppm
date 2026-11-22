@@ -51,7 +51,7 @@ export std::optional<HitRecord> intersect_primitive(const Disk& disk, Ray ray, f
   return HitRecord{t, p, n, disk.surface.mat, Le};
 }
 
-export PrimitiveSample sample_primitive_area(const Disk& disk, RandomGenerator& rng)
+export PrimitiveSample sample_surface_area(const Disk& disk, RandomGenerator& rng)
 {
   Point2f sample = sample_uniform_disk_concentric(disk.radius, rng);
 

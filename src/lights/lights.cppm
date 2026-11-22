@@ -3,16 +3,20 @@ export module lights;
 export import :light_sample;
 export import :point_light;
 export import :diffuse_area_light;
+export import :uniform_infinite_light;
 
 import core;
 import std;
 
-export using Light = std::variant<PointLight, DiffuseAreaLight>;
+export using Light = std::variant<PointLight, DiffuseAreaLight, UniformInfiniteLight>;
 
-// Its purpose is to return the radiance emitted by the light at a particular point `pe` in a particular direction `w`.
-// Here, `ne` is the light’s geometric normal, the one that defines the emitting side.
-export Color3f L(const DiffuseAreaLight& light, Point3f pe, Vector3f ne, Vector3f w);
-export Color3f L(const PointLight&       light, Point3f pe, Vector3f ne, Vector3f w);
+// Returns the radiance emitted by the light at point `p_emitted` (pe) in direction w.
+// The `n_emitted` (ne) is the light’s geometric normal at `pe`
+export Color3f L(const PointLight&            light, Point3f pe, Vector3f ne, Vector3f w);
+export Color3f L(const DiffuseAreaLight&      light, Point3f pe, Vector3f ne, Vector3f w);
+export Color3f L(const UniformInfiniteLight&  light, Point3f pe, Vector3f ne, Vector3f w);
 
-export LightSample sample_Li(const DiffuseAreaLight& light, Point3f ps, RandomGenerator& rng);
-export LightSample sample_Li(const PointLight&       light, Point3f ps, [[maybe_unused]]RandomGenerator& rng);
+// Picks one representative point `pe` on the light’s surface and returns the light contribution toward `p_surface` (ps).
+export LightSample sample_Li(const PointLight&            light, Point3f ps, RandomGenerator& rng);
+export LightSample sample_Li(const DiffuseAreaLight&      light, Point3f ps, RandomGenerator& rng);
+export LightSample sample_Li(const UniformInfiniteLight&  light, Point3f ps, RandomGenerator& rng);

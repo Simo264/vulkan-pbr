@@ -120,6 +120,7 @@ target_sources(lights_module PUBLIC FILE_SET CXX_MODULES FILES
   src/lights/light_sample.cppm
   src/lights/point_light.cppm
   src/lights/diffuse_area_light.cppm
+  src/lights/uniform_infinite_light.cppm
 )
 target_link_libraries(lights_module PUBLIC
   core_module
@@ -154,6 +155,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   core_module
   camera_module
   scene_module
+  hitrecord_module
   primitives_module
   materials_module
   lights_module

@@ -14,9 +14,10 @@ public:
 
   auto& objects() const { return m_objects; }
   auto& lights() const { return m_lights; }
+  auto& environment_light() const { return m_environment_light; }
 
-  void add(Primitive obj) { m_objects.push_back(std::move(obj)); }
-  void add(Light light)
+  void add_object(Primitive obj) { m_objects.push_back(std::move(obj)); }
+  void add_light(Light light)
   {
     std::visit([&](auto& l){
       using T = std::decay_t<decltype(l)>;
@@ -37,11 +38,13 @@ public:
     m_lights.push_back(std::move(light));
   }
 
+  void set_environment_light(UniformInfiniteLight light) { m_environment_light = std::move(light); }
+
   std::optional<HitRecord> intersect(Ray ray, f32 t_min = 1e-4f, f32 t_max = MAX_FLOAT_32) const
   {
     std::optional<HitRecord> best = std::nullopt;
     f32 closest = std::min(t_max, ray.t_max);
-    
+
     for (const auto& obj : m_objects)
     {
       std::visit([&](const auto& obj) {
@@ -58,4 +61,5 @@ public:
 private:
   std::vector<Primitive> m_objects;
   std::vector<Light> m_lights;
+  std::optional<UniformInfiniteLight> m_environment_light; // optional: a single uniform infinite light for the entire scene
 };

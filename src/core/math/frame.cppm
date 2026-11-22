@@ -19,9 +19,9 @@ export struct TangentFrame
   }
 
   // world to local
-  Vector3f to_local(Vector3f v) { return { dot(v, s), dot(v, t), dot(v, n) }; }
+  Vector3f to_local(Vector3f v) const { return { dot(v, s), dot(v, t), dot(v, n) }; }
   // local to world
-  Vector3f to_world(Vector3f v) { return v.x * s + v.y * t + v.z * n; }
+  Vector3f to_world(Vector3f v) const { return v.x * s + v.y * t + v.z * n; }
 
   Vector3f n; // normal
   Vector3f t; // tangent

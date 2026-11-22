@@ -22,10 +22,26 @@ to leverage GPU acceleration via Vulkan.
 
 ## Result
 
-![output](output_no_lights.png)
-![output](output_point_light.png)
-![output](output_area_light_disk.png)
-![output](output_area_light_sphere.png)
+Materials preview: Diffuse, Conductor, Dielectric
+
+![output](figures/materials_preview.png)
+
+Scene with a single point light
+
+![output](figures/point_light.png)
+
+Scene with a single diffuse area light (disk)
+
+![output](figures/disk_diffuse_area_light.png)
+
+Scene with a single diffuse area light (sphere)
+
+![output](figures/sphere_diffuse_area_light.png)
+
+Scene with a single diffuse area light (sphere) and environment lighting
+
+![output](figures/env_light.png)
+
 
 ## Requirements
 

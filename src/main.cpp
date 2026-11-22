@@ -6,14 +6,15 @@ import camera;
 import primitives;
 import bsdf;
 import materials;
+import hit_record;
 import lights;
 import stb;
 
 constexpr auto image_width        = 900;
 constexpr auto image_height       = 720;
-constexpr auto samples_per_pixel  = 512;
-constexpr auto max_depth          = 20;
-constexpr auto num_threads        = 8;
+constexpr auto samples_per_pixel  = 32;
+constexpr auto max_depth          = 50;
+constexpr auto num_threads        = 10;
 constexpr auto tile_size          = 32; // 32x32
 constexpr auto tiles_x            = (image_width + tile_size - 1) / tile_size;
 constexpr auto tiles_y            = (image_height + tile_size - 1) / tile_size;
@@ -21,10 +22,8 @@ constexpr auto n_tiles            = tiles_x * tiles_y;
 
 bool is_occluded(const Scene& scene, Point3f p, Vector3f n, Vector3f wi_world, f32 distance)
 {
-  constexpr auto eps = 1e-4f;
-
   f32 side = std::copysign(1.f, dot(wi_world, n));
-  Point3f origin = p + n * (side * eps);
+  Point3f origin = p + n * (side * 1e-3f);
   f32 t_max_shadow = distance * (1.f - 1e-3f);   // 0.1 % short of `distance`
 
   Ray shadow_ray{origin, wi_world, t_max_shadow};
@@ -34,15 +33,37 @@ bool is_occluded(const Scene& scene, Point3f p, Vector3f n, Vector3f wi_world, f
   return false;
 }
 
+Color3f direct_illumination(const Scene& scene, const LightSample& ls, const HitRecord& hit, const TangentFrame& frame, const Vector3f& wo)
+{
+  if (ls.pdf == 0.f)          return Color3f{0.f}; // invalid / unimplemented stub
+  if (ls.L   == Color3f{0.f}) return Color3f{0.f}; // black light
+
+  Vector3f wi = frame.to_local(ls.wi);   // world -> local
+  Color3f bsdf = std::visit([&](const auto& m) { return eval_material(m, wo, wi); }, hit.mat);
+  if(bsdf == Color3f{0.f}) return Color3f{0.f};
+
+  if(is_occluded(scene, hit.p, hit.n, ls.wi, ls.dist))
+     return Color3f{0.f};
+
+  // Monte Carlo Estimator. General estimator with any PDF formula:
+  // F_n = 1/n sum_i^n f(X_i)/p(X_i)
+  f32 cos_i = std::abs(wi.z);
+  Color3f Li = ls.L;
+  f32 pdf = ls.pdf;
+  return (bsdf * cos_i * Li) / pdf;
+}
+
 Color3f compute_shading(Ray r, const Scene& scene, RandomGenerator& rng, i32 depth)
 {
-  static auto sky_color = [](Vector3f d){ f32 t = 0.5f * (d.y + 1.f); return lerp(Color3f{1.f, 1.f, 1.f}, Color3f{0.5f, 0.7f, 1.f}, t); };
-
   if (depth <= 0) return Color3f{0.f};
 
   auto hit = scene.intersect(r);
   if (!hit)
-    return sky_color(r.d);
+  {
+    if (auto env = scene.environment_light())
+      return env->Le;
+    return Color3f{0.f};
+  }
 
   // Build the shading frame: an orthonormal basis (s, t, n) centered at the hit point with n = surface normal.
   // All BSDF math happens in this local space, where the normal is the +z axis.
@@ -50,30 +71,26 @@ Color3f compute_shading(Ray r, const Scene& scene, RandomGenerator& rng, i32 dep
   Vector3f wo = frame.to_local(-r.d); // in local shading frame
   Color3f Lo = hit->Le;
 
-  // Direct illumination
+  // Explicit light sampling: point and area lights
   for(const auto& light : scene.lights())
   {
     LightSample ls = std::visit([&](const auto& l) { return sample_Li(l, hit->p, rng); }, light); // wi, Li, pdf, distance
-    if (ls.pdf == 0.f)          continue; // invalid / unimplemented stub
-    if (ls.L   == Color3f{0.f}) continue; // black light
-
-    Vector3f wi = frame.to_local(ls.wi);   // world -> local
-    Color3f bsdf = std::visit([&](const auto& m) { return eval_material(m, wo, wi); }, hit->mat);
-    if(bsdf == Color3f{0.f}) continue;
-
-    if(is_occluded(scene, hit->p, hit->n, ls.wi, ls.dist))
-       continue;
-
-    // Monte Carlo Estimator. General estimator with any PDF formula:
-    // F_n = 1/n sum_i^n f(X_i)/p(X_i)
-    f32 cos_i = std::abs(wi.z);
-    Color3f Li = ls.L;
-    f32 pdf = ls.pdf;
-    Lo += (bsdf * cos_i * Li) / pdf;
+    Color3f contribution = direct_illumination(scene, ls, *hit, frame, wo);
+    Lo += contribution;
   }
 
-  // Indirect illumination
-  // TODO
+  // Continue the path with one BSDF sample
+  BSDFSample bs = std::visit([&](const auto& m) { return sample_material(m, wo, rng); }, hit->mat); // wi, f, pdf, cos_i
+  if(bs.valid && bs.pdf > 0.f && bs.f != Color3f{0.f})
+  {
+    Vector3f wi_world = frame.to_world(bs.wi);
+    f32 side = std::copysign(1.f, dot(wi_world, hit->n));
+    Point3f origin = hit->p + hit->n * (side * 1e-3f);
+    Ray new_ray{origin, wi_world, MAX_FLOAT_32};
+    Color3f Li = compute_shading(new_ray, scene, rng, depth - 1);
+    Lo += (bs.f * bs.cos_i * Li) / bs.pdf;
+  }
+
   return Lo;
 }
 
@@ -141,59 +158,71 @@ i32 main()
   // Set up scene
   // ==============================
 
-  // Disk emitter{
-  //   Point3f{0.f, 0.75f, 0.f},      // center position
-  //   Vector3f{0.f, -1.f, 0.f},      // normal vector
-  //   0.5f,                          // radius
-  //   Diffuse{Color3f{0.f}},         // material: zero albedo -> no reflection
-  //   Color3f{1.f} * 15.f,           // Le (warm white)
-  //   true                           // two_sided
-  // };
+  Disk disk_emitter{
+    Point3f{0.f, 0.95f, 0.f},      // center position
+    Vector3f{0.f, -1.f, 0.f},      // normal vector
+    1.f,                          // radius
+    Diffuse{Color3f{0.f}},         // material: zero albedo -> no reflection
+    Color3f{1.f} * 2.f,           // Le (white)
+    true                           // two_sided
+  };
 
-  Sphere emitter{
-    Point3f{ 0.f, 0.f, 1.f },          // center
+  Sphere sphere_emitter{
+    Point3f{ 0.f, 0.5f, 1.f },          // center
     0.5f,                              // radius
     Diffuse{Color3f{0.f}},             // material: zero albedo -> pure emitter
-    Color3f{0.2f, 0.15f, 0.10f}*50,    // Le
+    Color3f{1.0f} * 4,                  // Le
     true                               // two_sided
+  };
+
+  PointLight point_light{
+    Point3f{0.5f, 2.f, 0.f}, // position
+    30.f                     // intensity
+  };
+
+  UniformInfiniteLight env_light{
+    Color3f{0.30, 0.28, 0.25},    // Le ambient light
+    50.f                          // Radius of the sphere that surrounds the scene
   };
 
   Scene scene;
 
-  //scene.add(PointLight{Point3f{0.5f, 2.f, 0.f}, 30.f});
-  scene.add(DiffuseAreaLight{emitter});
+  //scene.add_light(point_light);
+  //scene.add_light(DiffuseAreaLight{disk_emitter});
+  scene.add_light(DiffuseAreaLight{sphere_emitter});
+  scene.set_environment_light(env_light);
 
-  scene.add(Disk{
+  scene.add_object(Disk{
     Point3f{0.f, -1.f, 0.f},
     Vector3f{0.f, 1.f, 0.f},
     10.f,
     Diffuse{.albedo = Color3f{0.8f, 0.9f, 1.f}}
   });
-  scene.add(Sphere{
+  scene.add_object(Sphere{
     Point3f{0.f, -0.75f, 0.f},
     0.25f,
     Diffuse{.albedo = Color3f{0.75f, 0.15f, 0.15}}
   });
-  scene.add(Sphere{
+  scene.add_object(Sphere{
     Point3f{-1.f, -0.75f, 2.f},
     0.25f,
     Diffuse{.albedo = Color3f{0.75f, 0.15f, 0.75}}
   });
-  scene.add(Sphere{
+  scene.add_object(Sphere{
     Point3f{-1.f, -0.75f, 0.f},
     0.25f,
     Conductor{
       .eta = Color3f{0.155, 0.116, 0.138}, // polished silver
       .k   = Color3f{4.83, 3.99, 2.48},
-      .alpha_x = 0.05f, .alpha_y = 0.05f
+      .alpha_x = 0.01f, .alpha_y = 0.01f
     }
   });
-  scene.add(Sphere{
+  scene.add_object(Sphere{
     Point3f{1.f, -0.75f, 1.f},
     0.25f,
     Dielectric{
       .eta = 1.5f, // smooth glass
-      .alpha_x = 0.01f, .alpha_y = 0.01f
+      .alpha_x = 0.0001f, .alpha_y = 0.0001f
     }
   });
 
