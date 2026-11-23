@@ -1,4 +1,4 @@
-export module materials:dielectric;
+export module material:dielectric;
 
 import core;
 import bsdf;
@@ -11,7 +11,6 @@ constexpr auto IOR_air = 1.0f;
 export struct Dielectric
 {
   f32 eta{ 1.5f }; // The material's IOR (e.g. glass = 1.5)
-
   f32 alpha_x{ 0.0001f };   // roughness; 0 -> smooth (delta)
   f32 alpha_y{ 0.0001f };   // if (alpha_y = alpha_x) -> isotropic
 };
@@ -19,18 +18,18 @@ export struct Dielectric
 // Index matched (eta = 1): no optical boundary, ray passes straight through
 BSDFSample sample_index_matched(Vector3f wo)
 {
-  BSDFSample s;
-
   Vector3f wi = -wo;
   f32 cos_i = std::abs(wi.z);
   if (cos_i <= 0.f)
     return BSDFSample{};
 
-  s.wi      = wi;
-  s.cos_i   = cos_i;
-  s.f       = Color3f{1.f / cos_i}; // trivial: passes Li through unchanged
-  s.pdf     = 1.f;
-  s.valid   = true;
+  BSDFSample s{
+    .wi      = wi,
+    .f       = Color3f{1.f / cos_i}, // trivial: passes Li through unchanged
+    .pdf     = 1.f,
+    .cos_i   = cos_i,
+    .valid   = true
+  };
   return s;
 }
 
@@ -51,12 +50,13 @@ BSDFSample sample_smooth(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, RandomG
     if (cos_wi <= 0.f)
       return BSDFSample{};
 
-    s.wi    = wi;
-    s.cos_i = cos_wi;
-    s.f     = Color3f{F / cos_wi};
-    // s.pdf   = F; // = 1 in case of total internal reflection
-    s.pdf = 1.f;
-    s.valid = true;
+    s = BSDFSample{
+      .wi      = wi,
+      .f       = Color3f{F / cos_wi},
+      .pdf     = 1.f, // s.pdf = F,
+      .cos_i   = cos_wi,
+      .valid   = true
+    };
   }
   else
   {
@@ -69,12 +69,15 @@ BSDFSample sample_smooth(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, RandomG
     if (cos_wi <= 0.f)
       return BSDFSample{};
 
-    s.wi    = wi;
-    s.cos_i = cos_wi;
-    s.f     = Color3f{T / (eta_rel * eta_rel * cos_wi)};
-    //s.pdf   = T;
-    s.pdf = 1.f;
-    s.valid = true;
+    Color3f f = Color3f{T / (eta_rel * eta_rel * cos_wi)};
+
+    s = BSDFSample{
+      .wi      = wi,
+      .f       = f,
+      .pdf     = 1.f, // s.pdf = T,
+      .cos_i   = cos_wi,
+      .valid   = true
+    };
   }
   return s;
 }
@@ -112,12 +115,16 @@ BSDFSample sample_rough(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, Trowbrid
 
     f32 Dv = distrib.D(wm);
     f32 Gv = distrib.G(wo, wi);
+    Color3f f = Color3f{F * Dv * Gv / (4.f * cos_i * cos_o)};
+    f32 pdf = distrib.D(wo, wm) / (4.f * abs_cos_om) * pr;
 
-    s.wi    = wi;
-    s.cos_i = cos_i;
-    s.f     = Color3f{F * Dv * Gv / (4.f * cos_i * cos_o)};
-    s.pdf   = distrib.D(wo, wm) / (4.f * abs_cos_om) * pr;
-    s.valid = true;
+    s = BSDFSample{
+      .wi    = wi,
+      .f     = f,
+      .pdf   = pdf,
+      .cos_i = cos_i,
+      .valid = true
+    };
   }
   else // Sample transmission at rough dielectric interface
   {
@@ -146,12 +153,16 @@ BSDFSample sample_rough(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, Trowbrid
 
     f32 Dv = distrib.D(wm);
     f32 Gv = distrib.G(wo, wi);
+    Color3f f = Color3f{(Dv * T * Gv * abs_cos_im * abs_cos_om) / (cos_i * cos_o * denom_sq * eta_rel * eta_rel)};
+    f32 pdf = distrib.D(wo, wm) * abs_cos_im / denom_sq * pt;
 
-    s.wi    = wi;
-    s.cos_i = cos_i;
-    s.f     = Color3f{(Dv * T * Gv * abs_cos_im * abs_cos_om) / (cos_i * cos_o * denom_sq * eta_rel * eta_rel)};
-    s.pdf   = distrib.D(wo, wm) * abs_cos_im / denom_sq * pt;
-    s.valid = true;
+    s = BSDFSample{
+      .wi    = wi,
+      .f     = f,
+      .pdf   = pdf,
+      .cos_i = cos_i,
+      .valid = true
+    };
   }
   return s;
 }

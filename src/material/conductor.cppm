@@ -1,4 +1,4 @@
-export module materials:conductor;
+export module material:conductor;
 
 import core;
 import bsdf;
@@ -26,12 +26,13 @@ BSDFSample sample_smooth(Conductor mat, Vector3f wo)
 
   Color3f F = fresnel_conductor(cos_i, mat.eta, mat.k);
 
-  BSDFSample s;
-  s.wi      = wi;
-  s.cos_i   = cos_i;
-  s.f       = F / cos_i;
-  s.pdf     = 1.f;
-  s.valid   = true;
+  BSDFSample s{
+    .wi = wi,
+    .f = F / cos_i,
+    .pdf = 1.f,
+    .cos_i = cos_i,
+    .valid = true
+  };
   return s;
 }
 
@@ -55,13 +56,16 @@ BSDFSample sample_rough(Conductor mat, Vector3f wo, TrowbridgeReitzDistribution 
 
   f32 Dv = distrib.D(wm);        // NDF (1-arg) — in the BRDF
   f32 Gv = distrib.G(wo, wi);    // height-correlated Smith
+  Color3f f = F * (Dv * Gv) / (4.f * cos_i * cos_o);
+  f32 pdf = distrib.D(wo, wm) / (4.f * cos_om);
 
-  BSDFSample s;
-  s.wi      = wi;
-  s.cos_i   = cos_i;
-  s.f       = F * (Dv * Gv) / (4.f * cos_i * cos_o);
-  s.pdf     = distrib.D(wo, wm) / (4.f * cos_om);
-  s.valid   = true;
+  BSDFSample s{
+    .wi = wi,
+    .f = f,
+    .pdf = pdf,
+    .cos_i = cos_i,
+    .valid = true
+  };
   return s;
 }
 

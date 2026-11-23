@@ -1,12 +1,13 @@
-export module primitives:plane;
+export module primitive:plane;
 
 import :surface;
 
 import core;
+import std;
+
 import camera;
 import hit_record;
-import materials;
-import std;
+import material;
 
 export struct Plane
 {
@@ -42,5 +43,13 @@ export std::optional<HitRecord> intersect_primitive(const Plane& plane, Ray ray,
 
   Point3f p = ray(t);
   Vector3f n = (denom < 0.f) ? plane.normal : -plane.normal;
-  return HitRecord{t, p, n, plane.surface.mat, Le};
+
+  HitRecord hit{
+    .t=t,
+    .p=p,
+    .n=n,
+    .mat=plane.surface.mat,
+    .Le=Le
+  };
+  return hit;
 }

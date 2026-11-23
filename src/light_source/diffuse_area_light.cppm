@@ -1,11 +1,12 @@
-export module lights:diffuse_area_light;
+export module light_source:diffuse_area_light;
 
 import :light_sample;
 
 import core;
-import primitives;
-import sampling;
 import std;
+
+import primitive;
+import sampling;
 
 // Compared with the point light, an AreaLight is defined by two things:
 // 1. shape: the geometric surface that emits light, such as a disk, rectangle or sphere
@@ -17,7 +18,7 @@ export struct DiffuseAreaLight
   DiffuseAreaLight(Primitive shape)
   {
     this->power = std::visit([&](const auto& s){ return s.surface.power(); }, shape);
-    this->shape = std::move(shape);
+    this->shape = shape;
   }
 
   Primitive shape{}; // shape: the geometric surface that emits light (disk, sphere, quad, ecc.)
@@ -65,5 +66,12 @@ export LightSample sample_Li(const DiffuseAreaLight& light, Point3f ps, RandomGe
   if(Le == Color3f{0.f}) return LightSample{};
 
   f32 pdf = sample.pdf_area * d2 / abs_cos; // area -> solid angle
-  return LightSample { wi, Le, pdf, dist };
+
+  LightSample ls{
+    .wi   = wi,
+    .L    = Le,
+    .pdf  = pdf,
+    .dist = dist
+  };
+  return ls;
 }

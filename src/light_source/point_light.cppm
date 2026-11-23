@@ -1,4 +1,4 @@
-export module lights:point_light;
+export module light_source:point_light;
 
 import :light_sample;
 
@@ -27,10 +27,11 @@ export LightSample sample_Li(const PointLight& light, Point3f p, RandomGenerator
   if (dist < 1e-6f)
     return LightSample{}; // pdf = 0, will be skipped
 
-  LightSample s;
-  s.dist  = dist;
-  s.wi    = d / dist;              // = normalize(d)
-  s.L     = Color3f{light.intensity / (dist*dist)}; // l.intensity / (dist*dist);
-  s.pdf   = 1.f;
-  return s;
+  LightSample sample{
+    .wi   = d / dist, // = normalize(d)
+    .L    = Color3f{light.intensity / (dist*dist)}, // l.intensity / (dist*dist);
+    .pdf  = 1.f,
+    .dist = dist
+  };
+  return sample;
 }

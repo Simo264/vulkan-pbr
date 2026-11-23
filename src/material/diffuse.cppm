@@ -1,4 +1,4 @@
-export module materials:diffuse;
+export module material:diffuse;
 
 import core;
 import bsdf;
@@ -12,8 +12,6 @@ export struct Diffuse
   Color3f albedo{0.9f}; // reflactance
 };
 
-
-
 export BSDFSample sample_material(Diffuse mat, Vector3f wo, RandomGenerator& rng)
 {
   Vector3f wi = sample_cosine_hemisphere(rng);
@@ -24,12 +22,13 @@ export BSDFSample sample_material(Diffuse mat, Vector3f wo, RandomGenerator& rng
   if (cos_i <= 0.f)
     return BSDFSample{};
 
-  BSDFSample s;
-  s.wi      = wi;
-  s.cos_i   = cos_i;
-  s.f       = mat.albedo / PI;
-  s.pdf     = cos_i / PI;
-  s.valid   = true;
+  BSDFSample s{
+    .wi      = wi,
+    .f       = Color3f{mat.albedo / PI},
+    .pdf     = cos_i / PI,
+    .cos_i   = cos_i,
+    .valid   = true
+  };
   return s;
 }
 

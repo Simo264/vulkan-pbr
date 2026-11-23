@@ -1,4 +1,4 @@
-export module lights:light_sample;
+export module light_source:light_sample;
 
 import core;
 

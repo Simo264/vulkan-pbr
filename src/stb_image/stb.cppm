@@ -1,4 +1,5 @@
 module;
+#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -8,39 +9,68 @@ export module stb;
 import core;
 import std;
 
+import image;
+
 export namespace stb
 {
-  [[nodiscard]] bool save_image(std::string_view filename, std::span<const u8> pixels, i32 image_width, i32 image_height)
+  [[nodiscard]] bool save_image_rgb8(std::string_view filename, const ImageLDR& image)
   {
-    if (image_width <= 0 || image_height <= 0 || filename.empty())
+    if (!image.is_valid() || filename.empty())
       return false;
 
-    constexpr usize channels = 3;
-
-    auto width = static_cast<usize>(image_width);
-    auto height = static_cast<usize>(image_height);
-
-    // Check size overflow.
-    if (width > std::numeric_limits<usize>::max() / height / channels)
-        return false;
-
-    usize expected_size = width * height * channels;
-
-    if (pixels.size() != expected_size)
-      return false;
-
-    // stb_image_write expects an int stride.
-    if (width > static_cast<usize>(std::numeric_limits<i32>::max()) / channels)
-      return false;
-
-    // string_view::data() is not necessarily null-terminated.
     std::string path{filename};
+    bool write = stbi_write_png(
+        path.c_str(),
+        image.width,
+        image.height,
+        image.channels,
+        image.pixels.data(),
+        image.width * image.channels
+    );
+    return write != 0;
+  }
+  [[nodiscard]] bool save_image_rgb32(std::string_view filename, const ImageHDR& image)
+  {
+    if (!image.is_valid() || filename.empty())
+      return false;
 
-    return stbi_write_png(path.c_str(),
-                          static_cast<i32>(image_width),
-                          static_cast<i32>(image_height),
-                          static_cast<i32>(channels),
-                          pixels.data(),
-                          static_cast<i32>(width * channels)) != 0;
+    std::string path{filename};
+    bool write = stbi_write_hdr(
+        path.c_str(),
+        image.width,
+        image.height,
+        image.channels,
+        image.pixels.data()
+    );
+    return write != 0;
+  }
+
+  [[nodiscard]] std::optional<ImageHDR> load_image_rgb32(std::string_view filename)
+  {
+    if (filename.empty())
+      return std::nullopt;
+
+    // Set gamma to 1.0 for linear color space
+    stbi_ldr_to_hdr_gamma(1.0f);
+
+    // Load image as float array (values will be linear)
+    std::string path{filename};
+    i32 width{0}, height{0}, channels{0};
+    f32* data = stbi_loadf(path.c_str(), &width, &height, &channels, 3); // 3 -> force for RGB
+
+    if (!data)
+      return std::nullopt;
+
+    usize pixel_count = static_cast<usize>(width) * static_cast<usize>(height) * 3;
+    std::vector<f32> pixels(data, data + pixel_count);
+    stbi_image_free(data);
+
+    ImageHDR image{
+      .pixels = std::move(pixels),
+      .width = width,
+      .height = height,
+      .channels = 3
+    };
+    return image;
   }
 }

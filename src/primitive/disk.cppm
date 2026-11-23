@@ -1,14 +1,15 @@
-export module primitives:disk;
+export module primitive:disk;
 
 import :primitive_sample;
 import :surface;
 
 import core;
+import std;
+
 import camera;
 import hit_record;
-import materials;
+import material;
 import sampling;
-import std;
 
 export struct Disk
 {
@@ -48,7 +49,15 @@ export std::optional<HitRecord> intersect_primitive(const Disk& disk, Ray ray, f
     Le = disk.surface.Le;
 
   Vector3f n = (denom < 0.f) ? disk.normal : -disk.normal;
-  return HitRecord{t, p, n, disk.surface.mat, Le};
+
+  HitRecord hit{
+    .t=t,
+    .p=p,
+    .n=n,
+    .mat=disk.surface.mat,
+    .Le=Le
+  };
+  return hit;
 }
 
 export PrimitiveSample sample_surface_area(const Disk& disk, RandomGenerator& rng)
@@ -60,5 +69,11 @@ export PrimitiveSample sample_surface_area(const Disk& disk, RandomGenerator& rn
   Point3f p_e  = disk.center + frame.to_world({sample.x, sample.y, 0.f});
   Vector3f n_e = disk.normal;
   f32 pdf_area = 1.f / disk.surface.area;
-  return PrimitiveSample{p_e, n_e, pdf_area};
+
+  PrimitiveSample ps{
+    .p = p_e,
+    .n = n_e,
+    .pdf_area = pdf_area
+  };
+  return ps;
 }

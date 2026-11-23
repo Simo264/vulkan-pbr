@@ -1,12 +1,14 @@
-export module primitives:cube;
+export module primitive:cube;
 
 import :surface;
 
 import core;
+import std;
+
 import camera;
 import hit_record;
-import materials;
-import std;
+import material;
+
 
 export struct Cube
 {
@@ -81,5 +83,13 @@ export std::optional<HitRecord> intersect_primitive(const Cube& cube, Ray ray, f
   n = normalize(n);
   if (dot(n, ray.d) > 0.f)
     n = -n;
-  return HitRecord{t_near, p, n, cube.surface.mat, Color3f{0.f} }; // TODO: Le=0.f
+
+  HitRecord hit{
+    .t=t_near,
+    .p=p,
+    .n=n,
+    .mat=cube.surface.mat,
+    .Le=Color3f{0.f} // TODO: Le=cube.surface.Le
+  };
+  return hit;
 }

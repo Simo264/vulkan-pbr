@@ -1,11 +1,12 @@
 export module scene;
 
 import core;
+import std;
+
 import camera;
 import hit_record;
-import primitives;
-import lights;
-import std;
+import primitive;
+import light_source;
 
 export class Scene
 {
@@ -16,29 +17,22 @@ public:
   auto& lights() const { return m_lights; }
   auto& environment_light() const { return m_environment_light; }
 
-  void add_object(Primitive obj) { m_objects.push_back(std::move(obj)); }
-  void add_light(Light light)
+  void add_object(Primitive obj) { m_objects.push_back(obj); }
+  void add_light(PointLight light) { m_lights.push_back(light); }
+  void add_light(DiffuseAreaLight light)
   {
-    std::visit([&](auto& l){
-      using T = std::decay_t<decltype(l)>;
+    f32 area = std::visit([&](const auto& s){ return s.surface.area; }, light.shape);
+    if (area <= 0.f) // this shape cannot be an area light
+    {
+      std::println("Warning: Tried to add a DiffuseAreaLight with zero area. Ignoring.");
+      return;
+    }
 
-      // if `light` is DiffuseAreaLight
-      if constexpr (std::is_same_v<T, DiffuseAreaLight>)
-      {
-        f32 area = std::visit([&](const auto& prim){ return prim.surface.area; }, l.shape);
-        if (area <= 0.f) // this shape cannot be an area light
-          return;
-
-        m_objects.push_back(l.shape); // shape already carries { Le, two_sided }
-      }
-      else if constexpr (std::is_same_v<T, PointLight>)
-      { /* if `light` object is a PointLight, then do nothing. Only push into the `m_lights` vector */ }
-    }, light);
-
-    m_lights.push_back(std::move(light));
+    m_objects.push_back(light.shape); // shape already carries { Le, two_sided }
+    m_lights.push_back(light);
   }
-
-  void set_environment_light(UniformInfiniteLight light) { m_environment_light = std::move(light); }
+  void set_environment_light(UniformInfiniteLight light) { m_environment_light = light; }
+  //void set_environment_light(ImageInfiniteLight light){}
 
   std::optional<HitRecord> intersect(Ray ray, f32 t_min = 1e-4f, f32 t_max = MAX_FLOAT_32) const
   {
@@ -51,7 +45,7 @@ public:
         if (auto hit = intersect_primitive(obj, ray, t_min, closest))
         {
           closest = hit->t;
-          best = HitRecord{ hit->t, hit->p, hit->n, hit->mat, hit->Le };
+          best = hit;
         }
       }, obj);
     }
@@ -60,6 +54,7 @@ public:
 
 private:
   std::vector<Primitive> m_objects;
-  std::vector<Light> m_lights;
+  std::vector<LightSource> m_lights;
   std::optional<UniformInfiniteLight> m_environment_light; // optional: a single uniform infinite light for the entire scene
+  // std::optional<ImageInfiniteLight> m_environment_light;
 };

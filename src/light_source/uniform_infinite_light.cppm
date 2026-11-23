@@ -1,11 +1,12 @@
-export module lights:uniform_infinite_light;
+export module light_source:uniform_infinite_light;
 
 import :light_sample;
 
 import core;
-import primitives;
-import sampling;
 import std;
+
+import primitive;
+import sampling;
 
 // UniformInfiniteLight represents environmental lighting at infinity: a light source that surrounds the entire scene
 // and emits the same radiance Le in every direction. Unlike a point light or a DiffuseAreaLight, it has no position,
@@ -41,5 +42,12 @@ export LightSample sample_Li(const UniformInfiniteLight& light, Point3f ps, Rand
   f32      pdf  = 1.0f / (4.0f * PI);                 // solid-angle pdf
   f32      dist = 2.0f * light.r;                     // certainly outside the scene
   Color3f  Li   = L(light, Point3f{}, Vector3f{}, Vector3f{});  // = light.Le
-  return LightSample{ wi, Li, pdf, dist };
+
+  LightSample sample{
+    .wi   = wi,
+    .L    = Li,
+    .pdf  = pdf,
+    .dist = dist
+  };
+  return sample;
 }

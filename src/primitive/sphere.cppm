@@ -1,14 +1,15 @@
-export module primitives:sphere;
+export module primitive:sphere;
 
 import :primitive_sample;
 import :surface;
 
 import core;
+import std;
+
 import camera;
 import hit_record;
-import materials;
+import material;
 import sampling;
-import std;
 
 export struct Sphere
 {
@@ -55,7 +56,14 @@ export std::optional<HitRecord> intersect_primitive(const Sphere& sphere, Ray ra
   if(sphere.surface.two_sided || denom < 0.f)
     Le = sphere.surface.Le;
 
-  return HitRecord{t,p,n,sphere.surface.mat,Le};
+  HitRecord hit{
+    .t = t,
+    .p = p,
+    .n = n,
+    .mat = sphere.surface.mat,
+    .Le = Le
+  };
+  return hit;
 }
 
 export PrimitiveSample sample_surface_area(const Sphere& sphere, RandomGenerator& rng)
@@ -63,5 +71,11 @@ export PrimitiveSample sample_surface_area(const Sphere& sphere, RandomGenerator
   Vector3f n = sample_uniform_sphere(rng);
   Point3f p = sphere.center + sphere.radius * n;
   f32 pdf_area = 1.f / sphere.surface.area;
-  return PrimitiveSample{ p, n, pdf_area };
+
+  PrimitiveSample sample{
+    .p = p,
+    .n = n,
+    .pdf_area = pdf_area
+  };
+  return sample;
 }

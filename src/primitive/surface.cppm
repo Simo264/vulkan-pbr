@@ -1,8 +1,9 @@
-export module primitives:surface;
+export module primitive:surface;
 
 import core;
-import materials;
 import std;
+
+import material;
 
 export struct Surface
 {

@@ -3,13 +3,15 @@ import std;
 import core;
 import scene;
 import camera;
-import primitives;
+import primitive;
 import bsdf;
-import materials;
+import material;
 import hit_record;
-import lights;
+import light_source;
+import image;
 import stb;
 
+constexpr auto image_output       = "output.png";
 constexpr auto image_width        = 900;
 constexpr auto image_height       = 720;
 constexpr auto samples_per_pixel  = 32;
@@ -118,30 +120,40 @@ void render_tile(i32 tile_idx, const Scene& scene, Camera& cam, RandomGenerator&
   }
 }
 
-void render_to_png(Camera& cam, std::string_view filename, i32 image_width, i32 image_height)
+void render_to_image(Camera& cam)
 {
+  auto filename = ::image_output;
+  auto width    = ::image_width;
+  auto height   = ::image_height;
   constexpr auto channels = 3;
 
-  std::vector<u8> pixels(image_width * image_height * channels);
+  std::vector<u8> pixels(width * height * channels);
 
   auto to_byte = [](f32 value) -> u8 {
     value = std::clamp(value, 0.f, 1.f);
     return static_cast<u8>(255.f * value);
   };
 
-  for (i32 j = 0; j < image_height; ++j)
+  for (i32 j = 0; j < height; ++j)
   {
-    for (i32 i = 0; i < image_width; ++i)
+    for (i32 i = 0; i < width; ++i)
     {
       Color3f color = clamp(cam.film.at(i, j), 0.f, 1.f);
-      usize index = (j * image_width + i) * channels;
+      i32 index = (j * width + i) * channels;
       pixels[index + 0] = to_byte(color.r);
       pixels[index + 1] = to_byte(color.g);
       pixels[index + 2] = to_byte(color.b);
     }
   }
 
-  if (!stb::save_image(filename, pixels, image_width, image_height))
+  ImageLDR image{
+    .pixels   = std::move(pixels),
+    .width    = width,
+    .height   = height,
+    .channels = channels
+  };
+
+  if (!stb::save_image_rgb8(filename, image))
     throw std::runtime_error("Failed to save PNG image");
 }
 
@@ -181,7 +193,7 @@ i32 main()
   };
 
   UniformInfiniteLight env_light{
-    Color3f{0.30, 0.28, 0.25},    // Le ambient light
+    Color3f{0.25},    // Le ambient light
     50.f                          // Radius of the sphere that surrounds the scene
   };
 
@@ -278,6 +290,6 @@ i32 main()
   auto t_end = std::chrono::steady_clock::now();
   auto elapsed = std::chrono::duration<f64>(t_end - t_start).count();
   std::println("Rendered in {:.2f} s", elapsed);
-  render_to_png(camera, "output.png", image_width, image_height);
+  render_to_image(camera);
   return 0;
 }
