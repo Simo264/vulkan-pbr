@@ -76,7 +76,10 @@ export BSDFSample sample_material(Conductor mat, Vector3f wo, RandomGenerator& r
 
   // handle smooth case
   if (distrib.effectively_smooth())
+  {
     s = sample_smooth(mat, wo);
+    s.is_specular = true; // smooth -> specular
+  }
   // handle roughness
   else
     s = sample_rough(mat, wo, distrib, rng);

@@ -11,8 +11,10 @@ import std;
 
 export using LightSource = std::variant<PointLight,
                                         DiffuseAreaLight,
-                                        UniformInfiniteLight
-                                        /*ImageInfiniteLight*/>;
+                                        UniformInfiniteLight,
+                                        ImageInfiniteLight>;
+
+export using InfiniteLightSource = std::variant<UniformInfiniteLight, ImageInfiniteLight>;
 
 // Returns the radiance emitted by the light at point `p_emitted` (pe) in direction w.
 // The `n_emitted` (ne) is the light’s geometric normal at `pe`

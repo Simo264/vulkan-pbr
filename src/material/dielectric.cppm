@@ -53,7 +53,7 @@ BSDFSample sample_smooth(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, RandomG
     s = BSDFSample{
       .wi      = wi,
       .f       = Color3f{F / cos_wi},
-      .pdf     = 1.f, // s.pdf = F,
+      .pdf     = F,
       .cos_i   = cos_wi,
       .valid   = true
     };
@@ -74,7 +74,7 @@ BSDFSample sample_smooth(Vector3f wo, f32 eta_i, f32 eta_t, f32 eta_rel, RandomG
     s = BSDFSample{
       .wi      = wi,
       .f       = f,
-      .pdf     = 1.f, // s.pdf = T,
+      .pdf     = T,
       .cos_i   = cos_wi,
       .valid   = true
     };
@@ -189,7 +189,10 @@ export BSDFSample sample_material(Dielectric mat, Vector3f wo, RandomGenerator& 
 
   // handle smooth dielectric
   if (distrib.effectively_smooth())
+  {
     s = sample_smooth(wo, eta_i, eta_t, eta_rel, rng);
+    s.is_specular = true; // smooth -> specular
+  }
   // handle rough dielectric
   else
     s = sample_rough(wo, eta_i, eta_t, eta_rel, distrib, rng);

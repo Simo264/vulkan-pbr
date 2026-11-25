@@ -51,7 +51,7 @@ export namespace stb
       return std::nullopt;
 
     // Set gamma to 1.0 for linear color space
-    stbi_ldr_to_hdr_gamma(1.0f);
+    // stbi_ldr_to_hdr_gamma(1.0f);
 
     // Load image as float array (values will be linear)
     std::string path{filename};

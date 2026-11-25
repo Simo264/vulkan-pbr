@@ -52,7 +52,7 @@ public:
     // Step 1: transform the GGX ellipsoid into a hemisphere
     Vector3f wh = normalize(Vector3f{alpha_x * w.x, alpha_y * w.y, w.z});
     if (wh.z < 0)
-    wh = -wh;
+      wh = -wh;
 
     // Step 2: find orthonormal basis for visible normal sampling
     Vector3f T1 = (wh.z < 0.99999f) ? normalize(cross(Vector3f{0.f, 0.f, 1.f}, wh)) : Vector3f{1.f, 0.f, 0.f};

@@ -15,7 +15,7 @@ constexpr auto image_output       = "output.png";
 constexpr auto image_width        = 900;
 constexpr auto image_height       = 720;
 constexpr auto samples_per_pixel  = 32;
-constexpr auto max_depth          = 50;
+constexpr auto max_depth          = 5;
 constexpr auto num_threads        = 10;
 constexpr auto tile_size          = 32; // 32x32
 constexpr auto tiles_x            = (image_width + tile_size - 1) / tile_size;
@@ -62,8 +62,15 @@ Color3f compute_shading(Ray r, const Scene& scene, RandomGenerator& rng, i32 dep
   auto hit = scene.intersect(r);
   if (!hit)
   {
-    if (auto env = scene.environment_light())
-      return env->Le;
+    //static auto sky_color = [](Vector3f d){ f32 t = 0.5f * (d.y + 1.f); return lerp(Color3f{1.f, 1.f, 1.f}, Color3f{0.5f, 0.7f, 1.f}, t); };
+    //return sky_color(r.d);
+
+    if (const auto& env = scene.environment_light())
+    {
+      auto light = env.value();
+      auto emission = std::visit([&](const auto& l) { return L(l, r.o, Vector3f{0,0,1}, r.d); }, light);
+      return emission;
+    }
     return Color3f{0.f};
   }
 
@@ -71,14 +78,15 @@ Color3f compute_shading(Ray r, const Scene& scene, RandomGenerator& rng, i32 dep
   // All BSDF math happens in this local space, where the normal is the +z axis.
   TangentFrame frame{hit->n};
   Vector3f wo = frame.to_local(-r.d); // in local shading frame
-  Color3f Lo = hit->Le;
+
+  Color3f Lo_direct = Color3f{0.f};
+  Color3f Lo_indirect = Color3f{0.f};
 
   // Explicit light sampling: point and area lights
   for(const auto& light : scene.lights())
   {
     LightSample ls = std::visit([&](const auto& l) { return sample_Li(l, hit->p, rng); }, light); // wi, Li, pdf, distance
-    Color3f contribution = direct_illumination(scene, ls, *hit, frame, wo);
-    Lo += contribution;
+    Lo_direct += direct_illumination(scene, ls, *hit, frame, wo);
   }
 
   // Continue the path with one BSDF sample
@@ -90,10 +98,10 @@ Color3f compute_shading(Ray r, const Scene& scene, RandomGenerator& rng, i32 dep
     Point3f origin = hit->p + hit->n * (side * 1e-3f);
     Ray new_ray{origin, wi_world, MAX_FLOAT_32};
     Color3f Li = compute_shading(new_ray, scene, rng, depth - 1);
-    Lo += (bs.f * bs.cos_i * Li) / bs.pdf;
+    Lo_indirect += (bs.f * bs.cos_i * Li) / bs.pdf;
   }
 
-  return Lo;
+  return hit->Le + Lo_direct + Lo_indirect;
 }
 
 void render_tile(i32 tile_idx, const Scene& scene, Camera& cam, RandomGenerator& rng)
@@ -122,9 +130,9 @@ void render_tile(i32 tile_idx, const Scene& scene, Camera& cam, RandomGenerator&
 
 void render_to_image(Camera& cam)
 {
-  auto filename = ::image_output;
-  auto width    = ::image_width;
-  auto height   = ::image_height;
+  auto filename = ::image_output; // global constant
+  auto width    = ::image_width;  // global constant
+  auto height   = ::image_height; // global constant
   constexpr auto channels = 3;
 
   std::vector<u8> pixels(width * height * channels);
@@ -160,69 +168,80 @@ void render_to_image(Camera& cam)
 i32 main()
 {
   Camera camera{
-    Point3f{0.f, 1.f, -5.f}, // position
-    Point3f{0.f, 0.f, 0.f},   // look at
-    35.f,                     // FOV in degrees,
+    Point3f{0.f, 5.f, -10.f}, // position
+    Point3f{0.f, 2.f, 0.f},   // look at
+    50.f,                     // FOV in degrees,
     image_width, image_height
   };
+
+  std::shared_ptr<ImageHDR> hdr_image;
+  if(auto res = stb::load_image_rgb32("hdr/meadow.hdr"))
+  {
+    ImageHDR img = res.value();
+    std::println("Loaded HDR environment map: {}x{} pixels, {} channels", img.width, img.height, img.channels);
+    hdr_image = std::make_shared<ImageHDR>(std::move(img));
+  }
+  else
+    throw std::runtime_error("Failed to load HDR environment map");
 
   // ==============================
   // Set up scene
   // ==============================
 
   Disk disk_emitter{
-    Point3f{0.f, 0.95f, 0.f},      // center position
+    Point3f{0.f, 4.5f, 0.f},      // center position
     Vector3f{0.f, -1.f, 0.f},      // normal vector
     1.f,                          // radius
     Diffuse{Color3f{0.f}},         // material: zero albedo -> no reflection
-    Color3f{1.f} * 2.f,           // Le (white)
+    Color3f{1.f} * 8.f,           // Le (white)
     true                           // two_sided
   };
 
   Sphere sphere_emitter{
-    Point3f{ 0.f, 0.5f, 1.f },          // center
-    0.5f,                              // radius
+    Point3f{ 0.f, 4.f, 0.f },          // center
+    0.75f,                              // radius
     Diffuse{Color3f{0.f}},             // material: zero albedo -> pure emitter
-    Color3f{1.0f} * 4,                  // Le
+    Color3f{1.0f} * 8,                  // Le
     true                               // two_sided
   };
 
   PointLight point_light{
-    Point3f{0.5f, 2.f, 0.f}, // position
+    Point3f{0.0f, 4.f, 0.f}, // position
     30.f                     // intensity
   };
 
-  UniformInfiniteLight env_light{
-    Color3f{0.25},    // Le ambient light
+  UniformInfiniteLight uniform_env_map{
+    Color3f{0.5},    // Le ambient light
     50.f                          // Radius of the sphere that surrounds the scene
+  };
+
+  ImageInfiniteLight image_env_map{
+    .radiance_map = hdr_image,  // HDR environment map
+    .r = 50.f                 // Radius of the sphere that surrounds the scene
   };
 
   Scene scene;
 
   //scene.add_light(point_light);
   //scene.add_light(DiffuseAreaLight{disk_emitter});
-  scene.add_light(DiffuseAreaLight{sphere_emitter});
-  scene.set_environment_light(env_light);
+  //scene.add_light(DiffuseAreaLight{sphere_emitter});
+  //scene.set_environment(uniform_env_map);
+  scene.set_environment(image_env_map);
 
   scene.add_object(Disk{
     Point3f{0.f, -1.f, 0.f},
     Vector3f{0.f, 1.f, 0.f},
-    10.f,
+    15.f,
     Diffuse{.albedo = Color3f{0.8f, 0.9f, 1.f}}
   });
   scene.add_object(Sphere{
-    Point3f{0.f, -0.75f, 0.f},
-    0.25f,
-    Diffuse{.albedo = Color3f{0.75f, 0.15f, 0.15}}
+    Point3f{3.f, 0.f, 3.f},
+    1.f,
+    Diffuse{.albedo = Color3f{0.75f, 0.15f, 0.15}} // red diffuse
   });
   scene.add_object(Sphere{
-    Point3f{-1.f, -0.75f, 2.f},
-    0.25f,
-    Diffuse{.albedo = Color3f{0.75f, 0.15f, 0.75}}
-  });
-  scene.add_object(Sphere{
-    Point3f{-1.f, -0.75f, 0.f},
-    0.25f,
+    Point3f{-3.5f, 0.f, 1.f},
+    1.f,
     Conductor{
       .eta = Color3f{0.155, 0.116, 0.138}, // polished silver
       .k   = Color3f{4.83, 3.99, 2.48},
@@ -230,11 +249,11 @@ i32 main()
     }
   });
   scene.add_object(Sphere{
-    Point3f{1.f, -0.75f, 1.f},
-    0.25f,
+    Point3f{0.f, 0.f, 0.f},
+    1.f,
     Dielectric{
       .eta = 1.5f, // smooth glass
-      .alpha_x = 0.0001f, .alpha_y = 0.0001f
+      .alpha_x = 0.01f, .alpha_y = 0.01f
     }
   });
 

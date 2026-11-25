@@ -5,11 +5,12 @@ export import :trowbridge_reitz;
 
 export struct BSDFSample
 {
-  Vector3f wi{0.f, 0.f, 0.f};      // local-space direction
-  Color3f  f{0.f, 0.f, 0.f};       // The BSDF function: f = f_r + f_t
-  f32      pdf{0.f};     // useful in Monte Carlo integration
-  f32      cos_i{0.f};   // cosine between surface normal and the incident beam
-  bool     valid{false};   // set false at any early-out
+  Vector3f wi{0.f, 0.f, 0.f};   // local-space direction
+  Color3f  f{0.f, 0.f, 0.f};    // The BSDF function: f = f_r + f_t
+  f32      pdf{0.f};            // useful in Monte Carlo integration
+  f32      cos_i{0.f};          // cosine between surface normal and the incident beam
+  bool     valid{false};        // set false at any early-out
+  bool     is_specular{false};  // set true if the sample is a specular reflection or transmission
 };
 
 export bool same_hemisphere(Vector3f w, Vector3f wp)

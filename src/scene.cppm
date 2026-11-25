@@ -19,20 +19,19 @@ public:
 
   void add_object(Primitive obj) { m_objects.push_back(obj); }
   void add_light(PointLight light) { m_lights.push_back(light); }
-  void add_light(DiffuseAreaLight light)
+  void add_light(DiffuseAreaLight l)
   {
-    f32 area = std::visit([&](const auto& s){ return s.surface.area; }, light.shape);
+    f32 area = std::visit([&](const auto& s){ return s.surface.area; }, l.shape);
     if (area <= 0.f) // this shape cannot be an area light
     {
       std::println("Warning: Tried to add a DiffuseAreaLight with zero area. Ignoring.");
       return;
     }
 
-    m_objects.push_back(light.shape); // shape already carries { Le, two_sided }
-    m_lights.push_back(light);
+    m_objects.push_back(l.shape); // shape already carries { Le, two_sided }
+    m_lights.push_back(l);
   }
-  void set_environment_light(UniformInfiniteLight light) { m_environment_light = light; }
-  //void set_environment_light(ImageInfiniteLight light){}
+  void set_environment(InfiniteLightSource l) { m_environment_light = l; }
 
   std::optional<HitRecord> intersect(Ray ray, f32 t_min = 1e-4f, f32 t_max = MAX_FLOAT_32) const
   {
@@ -55,6 +54,5 @@ public:
 private:
   std::vector<Primitive> m_objects;
   std::vector<LightSource> m_lights;
-  std::optional<UniformInfiniteLight> m_environment_light; // optional: a single uniform infinite light for the entire scene
-  // std::optional<ImageInfiniteLight> m_environment_light;
+  std::optional<InfiniteLightSource> m_environment_light; // optional: a single uniform infinite light for the entire scene
 };
