@@ -45,6 +45,30 @@ export namespace stb
     return write != 0;
   }
 
+  [[nodiscard]] std::optional<ImageLDR> load_image_rgb8(std::string_view filename) {
+    if (filename.empty())
+      return std::nullopt;
+
+    std::string path{filename};
+    i32 width{0}, height{0}, channels{0};
+
+    u8* data = static_cast<u8*>(stbi_load(path.c_str(), &width, &height, &channels, 3));
+    if (!data)
+      return std::nullopt;
+
+    usize pixel_count = static_cast<usize>(width) * static_cast<usize>(height) * 3;
+    std::vector<u8> pixels(data, data + pixel_count);
+    stbi_image_free(data);
+
+    ImageLDR image{
+      .pixels = std::move(pixels),
+      .width = width,
+      .height = height,
+      .channels = 3
+    };
+    return image;
+  }
+
   [[nodiscard]] std::optional<ImageHDR> load_image_rgb32(std::string_view filename)
   {
     if (filename.empty())

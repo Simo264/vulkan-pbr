@@ -27,4 +27,4 @@ export Color3f L(const ImageInfiniteLight&   light, Point3f pe, Vector3f ne, Vec
 export LightSample sample_Li(const PointLight&            light, Point3f ps, RandomGenerator& rng);
 export LightSample sample_Li(const DiffuseAreaLight&      light, Point3f ps, RandomGenerator& rng);
 export LightSample sample_Li(const UniformInfiniteLight&  light, Point3f ps, RandomGenerator& rng);
-export LightSample sample_Li(const ImageInfiniteLight&  light, Point3f ps, RandomGenerator& rng);
+export LightSample sample_Li(const ImageInfiniteLight&    light, Point3f ps, RandomGenerator& rng);

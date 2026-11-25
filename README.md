@@ -38,9 +38,9 @@ Scene with a single diffuse area light (sphere)
 
 ![output](figures/sphere_diffuse_area_light.png)
 
-Scene with a single diffuse area light (sphere) and environment lighting
+Scene with environment map
 
-![output](figures/env_light.png)
+![output](figures/environment_map.png)
 
 
 ## Requirements

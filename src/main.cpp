@@ -14,7 +14,7 @@ import stb;
 constexpr auto image_output       = "output.png";
 constexpr auto image_width        = 900;
 constexpr auto image_height       = 720;
-constexpr auto samples_per_pixel  = 32;
+constexpr auto samples_per_pixel  = 512;
 constexpr auto max_depth          = 5;
 constexpr auto num_threads        = 10;
 constexpr auto tile_size          = 32; // 32x32
@@ -168,18 +168,38 @@ void render_to_image(Camera& cam)
 i32 main()
 {
   Camera camera{
-    Point3f{0.f, 5.f, -10.f}, // position
+    Point3f{0.f, 3.f, -7.f}, // position
     Point3f{0.f, 2.f, 0.f},   // look at
-    50.f,                     // FOV in degrees,
+    90.f,                     // FOV in degrees,
     image_width, image_height
   };
 
   std::shared_ptr<ImageHDR> hdr_image;
-  if(auto res = stb::load_image_rgb32("hdr/meadow.hdr"))
+  if(auto res = stb::load_image_rgb8("hdr/env-midday-sunflowers.png"))
   {
-    ImageHDR img = res.value();
-    std::println("Loaded HDR environment map: {}x{} pixels, {} channels", img.width, img.height, img.channels);
-    hdr_image = std::make_shared<ImageHDR>(std::move(img));
+    ImageLDR ldr = res.value();
+    std::println("Loaded HDR environment map: {}x{} pixels, {} channels", ldr.width, ldr.height, ldr.channels);
+
+    ImageHDR hdr;
+    hdr.width    = ldr.width;
+    hdr.height   = ldr.height;
+    hdr.channels = ldr.channels;
+    hdr.pixels.resize(ldr.pixels.size());
+    constexpr f32 inv_255 = 1.f / 255.f;
+
+    auto srgb_to_linear = [](f32 x){
+      if (x <= 0.04045f)
+        return x / 12.92f;
+      return std::pow((x + 0.055f) / 1.055f, 2.4f);
+    };
+
+    for (usize i = 0; i < ldr.pixels.size(); ++i)
+    {
+      f32 v = ldr.pixels[i] * inv_255;
+      hdr.pixels[i] = srgb_to_linear(v);
+    }
+
+    hdr_image = std::make_shared<ImageHDR>(std::move(hdr));
   }
   else
     throw std::runtime_error("Failed to load HDR environment map");
@@ -216,8 +236,9 @@ i32 main()
   };
 
   ImageInfiniteLight image_env_map{
-    .radiance_map = hdr_image,  // HDR environment map
-    .r = 50.f                 // Radius of the sphere that surrounds the scene
+    .radiance_map = hdr_image,        // HDR environment map
+    .render_from_light = rotate_x(-90.f), // identity
+    .r = 50.f                         // Radius of the sphere that surrounds the scene
   };
 
   Scene scene;
